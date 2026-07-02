@@ -1,0 +1,217 @@
+# SW-ADMINS Configuration
+
+Device role: Access Switch
+Model: Cisco 2960
+Function: Access switch for the administration VLAN.
+
+---
+
+## Basic Configuration
+
+```bash
+hostname SW-ADMINS
+```
+
+---
+
+## VLAN Configuration
+
+```bash
+vlan 30
+ name ADMINS
+exit
+
+vlan 99
+ name MGMT
+exit
+```
+
+---
+
+## Trunk Link to MLS-CORE
+
+The `Fa0/1` interface connects this access switch to `MLS-CORE`.
+
+```bash
+interface fastEthernet 0/1
+ description Trunk to MLS-CORE
+ switchport mode trunk
+ switchport trunk allowed vlan 30,99
+ no shutdown
+exit
+```
+
+---
+
+## Access Ports for Admin Devices
+
+Administration PCs are connected to access ports in VLAN 30.
+
+```bash
+interface range fastEthernet 0/2 - 24
+ description Admin access ports
+ switchport mode access
+ switchport access vlan 30
+ spanning-tree portfast
+ no shutdown
+exit
+```
+
+---
+
+## Management Interface
+
+This switch is managed through VLAN 99.
+
+```bash
+interface vlan 99
+ description Management interface
+ ip address 192.168.2.110 255.255.255.248
+ no shutdown
+exit
+```
+
+---
+
+## Default Gateway
+
+Since this is a Layer 2 switch, it uses a default gateway for remote management.
+
+```bash
+ip default-gateway 192.168.2.105
+```
+
+---
+
+## Admin VLAN Addressing
+
+Admin devices receive IP addresses through DHCP.
+
+```text
+VLAN: 30
+Name: ADMINS
+Network: 192.168.2.112/29
+Gateway: 192.168.2.113
+DHCP Start IP: 192.168.2.114
+Subnet Mask: 255.255.255.248
+```
+
+Example admin PC configuration after DHCP:
+
+```text
+PC-ADMIN
+IP Address: 192.168.2.114
+Subnet Mask: 255.255.255.248
+Default Gateway: 192.168.2.113
+DNS Server: 192.168.2.98
+```
+
+---
+
+## Expected VLAN Assignment
+
+| Interface        | Mode   | VLAN   |
+| ---------------- | ------ | ------ |
+| `Fa0/1`          | Trunk  | 30, 99 |
+| `Fa0/2 - Fa0/24` | Access | 30     |
+
+---
+
+## Verification Commands
+
+```bash
+show vlan brief
+show interfaces trunk
+show ip interface brief
+show running-config
+```
+
+---
+
+## Expected Tests
+
+From an admin PC connected to this switch:
+
+```bash
+ping 192.168.2.113
+```
+
+Expected result:
+
+```text
+Reply from 192.168.2.113
+```
+
+Admin devices should be able to reach the server VLAN:
+
+```bash
+ping 192.168.2.98
+```
+
+Expected result:
+
+```text
+Reply from 192.168.2.98
+```
+
+Admin devices should also be able to reach the router:
+
+```bash
+ping 10.0.0.1
+```
+
+Expected result:
+
+```text
+Reply from 10.0.0.1
+```
+
+---
+
+## SSH Management Tests
+
+Admin devices are allowed to manage network devices using SSH.
+
+SSH to `MLS-CORE`:
+
+```bash
+ssh -l admin 192.168.2.105
+```
+
+Expected result:
+
+```text
+Connection successful
+```
+
+SSH to `R-INTERNET`:
+
+```bash
+ssh -l admin 10.0.0.1
+```
+
+Expected result:
+
+```text
+Connection successful
+```
+
+---
+
+## Security Notes
+
+The administration VLAN has higher privileges than the other VLANs.
+
+Admin devices are allowed to:
+
+* Access the server VLAN
+* Reach the router
+* Manage network devices through SSH
+
+SSH access is restricted using an ACL configured on `MLS-CORE` and `R-INTERNET`.
+
+Only the following network is allowed:
+
+```text
+192.168.2.112/29
+```
