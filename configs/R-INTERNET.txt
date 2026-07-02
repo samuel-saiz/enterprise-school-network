@@ -1,0 +1,151 @@
+# R-INTERNET Configuration
+
+Device role: Edge Router
+Model: Cisco 2911
+Function: External network access, routing back to the internal school network and SSH management.
+
+---
+
+## Basic Configuration
+
+```bash
+hostname R-INTERNET
+
+ip domain-name school.local
+
+username admin privilege 15 secret <SECURE_PASSWORD>
+enable secret <ENABLE_SECRET>
+
+ip ssh version 2
+```
+
+---
+
+## Interface to MLS-CORE
+
+```bash
+interface gigabitEthernet 0/0
+ description Link to MLS-CORE
+ ip address 10.0.0.1 255.255.255.252
+ no shutdown
+exit
+```
+
+---
+
+## Static Route to Internal Network
+
+The internal school network uses the following main network:
+
+```text
+192.168.0.0/22
+```
+
+Static route configured on `R-INTERNET`:
+
+```bash
+ip route 192.168.0.0 255.255.252.0 10.0.0.2
+```
+
+This route allows the router to reach all internal VLANs through `MLS-CORE`.
+
+---
+
+## SSH Access Restriction
+
+Only the administration VLAN is allowed to manage the router through SSH.
+
+Allowed network:
+
+```text
+192.168.2.112/29
+```
+
+ACL configuration:
+
+```bash
+ip access-list standard SSH_ADMINS_ONLY
+ permit 192.168.2.112 0.0.0.7
+ deny any
+exit
+```
+
+---
+
+## VTY Lines
+
+```bash
+line vty 0 4
+ login local
+ transport input ssh
+ access-class SSH_ADMINS_ONLY in
+exit
+```
+
+---
+
+## Expected Routing Table
+
+The router should have:
+
+```text
+10.0.0.0/30 directly connected
+192.168.0.0/22 via 10.0.0.2
+```
+
+---
+
+## Verification Commands
+
+```bash
+show ip interface brief
+show ip route
+show ip ssh
+show access-lists
+show running-config | section line vty
+```
+
+---
+
+## Connectivity Tests
+
+From `R-INTERNET`:
+
+```bash
+ping 10.0.0.2
+```
+
+Expected result:
+
+```text
+Reply from 10.0.0.2
+```
+
+From `PC-ADMIN`:
+
+```bash
+ping 10.0.0.1
+ssh -l admin 10.0.0.1
+```
+
+Expected result:
+
+```text
+Ping successful
+SSH connection successful
+```
+
+---
+
+## Security Notes
+
+Real passwords should not be published in GitHub.
+
+Use placeholders such as:
+
+```text
+<SECURE_PASSWORD>
+<ENABLE_SECRET>
+```
+
+This router is configured to accept SSH connections only from the admin VLAN.
