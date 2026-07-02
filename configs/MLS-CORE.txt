@@ -1,0 +1,227 @@
+# MLS-CORE Configuration
+
+Device role: Multilayer Core Switch
+Model: Cisco 3560
+Function: VLAN gateways, inter-VLAN routing, trunks, ACLs, DHCP relay and SSH management.
+
+---
+
+## Basic Configuration
+
+```bash
+hostname MLS-CORE
+
+ip domain-name school.local
+
+username admin privilege 15 secret <SECURE_PASSWORD>
+enable secret <ENABLE_SECRET>
+
+ip ssh version 2
+```
+
+---
+
+## VLAN Configuration
+
+```bash
+vlan 10
+ name ALUMNOS
+exit
+
+vlan 20
+ name PROFESORES
+exit
+
+vlan 30
+ name ADMINS
+exit
+
+vlan 40
+ name INVITADOS
+exit
+
+vlan 50
+ name SERVERS
+exit
+
+vlan 99
+ name MGMT
+exit
+```
+
+---
+
+## Inter-VLAN Routing
+
+```bash
+ip routing
+```
+
+---
+
+## SVI Interfaces
+
+```bash
+interface vlan 10
+ description Gateway VLAN ALUMNOS
+ ip address 192.168.0.1 255.255.254.0
+ ip helper-address 192.168.2.98
+ ip access-group ACL_ALUMNOS in
+ no shutdown
+exit
+
+interface vlan 20
+ description Gateway VLAN PROFESORES
+ ip address 192.168.2.1 255.255.255.192
+ ip helper-address 192.168.2.98
+ no shutdown
+exit
+
+interface vlan 40
+ description Gateway VLAN INVITADOS
+ ip address 192.168.2.65 255.255.255.224
+ ip helper-address 192.168.2.98
+ ip access-group ACL_INVITADOS in
+ no shutdown
+exit
+
+interface vlan 50
+ description Gateway VLAN SERVERS
+ ip address 192.168.2.97 255.255.255.248
+ no shutdown
+exit
+
+interface vlan 99
+ description Gateway VLAN MGMT
+ ip address 192.168.2.105 255.255.255.248
+ no shutdown
+exit
+
+interface vlan 30
+ description Gateway VLAN ADMINS
+ ip address 192.168.2.113 255.255.255.248
+ ip helper-address 192.168.2.98
+ no shutdown
+exit
+```
+
+---
+
+## Trunk Links to Access Switches
+
+```bash
+interface fastEthernet 0/1
+ description Trunk to SW-ALUMNOS
+ switchport trunk allowed vlan 10,99
+ switchport mode trunk
+ no shutdown
+exit
+
+interface fastEthernet 0/2
+ description Trunk to SW-PROFESORES
+ switchport trunk allowed vlan 20,99
+ switchport mode trunk
+ no shutdown
+exit
+
+interface fastEthernet 0/3
+ description Trunk to SW-INVITADOS
+ switchport trunk allowed vlan 40,99
+ switchport mode trunk
+ no shutdown
+exit
+
+interface fastEthernet 0/4
+ description Trunk to SW-SERVERS
+ switchport trunk allowed vlan 50,99
+ switchport mode trunk
+ no shutdown
+exit
+
+interface fastEthernet 0/5
+ description Trunk to SW-ADMINS
+ switchport trunk allowed vlan 30,99
+ switchport mode trunk
+ no shutdown
+exit
+```
+
+---
+
+## Link to Router
+
+```bash
+interface gigabitEthernet 0/1
+ description Link to R-INTERNET
+ no switchport
+ ip address 10.0.0.2 255.255.255.252
+ no shutdown
+exit
+```
+
+---
+
+## Default Route
+
+```bash
+ip route 0.0.0.0 0.0.0.0 10.0.0.1
+```
+
+---
+
+## ACL for Students
+
+```bash
+ip access-list extended ACL_ALUMNOS
+ deny ip 192.168.0.0 0.0.1.255 192.168.2.96 0.0.0.7
+ permit ip any any
+exit
+```
+
+---
+
+## ACL for Guests
+
+```bash
+ip access-list extended ACL_INVITADOS
+ deny ip 192.168.2.64 0.0.0.31 192.168.0.0 0.0.3.255
+ permit ip any any
+exit
+```
+
+---
+
+## SSH Access Restriction
+
+```bash
+ip access-list standard SSH_ADMINS_ONLY
+ permit 192.168.2.112 0.0.0.7
+ deny any
+exit
+```
+
+---
+
+## VTY Lines
+
+```bash
+line vty 0 15
+ login local
+ transport input ssh
+ access-class SSH_ADMINS_ONLY in
+exit
+```
+
+---
+
+## Useful Verification Commands
+
+```bash
+show vlan brief
+show interfaces trunk
+show ip interface brief
+show ip route
+show access-lists
+show ip ssh
+show running-config
+```
