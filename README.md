@@ -74,90 +74,106 @@ This provides the following range:
 192.168.0.0 - 192.168.3.255
 ```
 
-This range was selected to allow enough space for all VLANs and future growth.
+This range was selected to allow enough address space for all VLANs and future growth.
 
 ---
 
 ## 📊 VLAN & Addressing Plan
 
-| VLAN | Name       | Network          | Mask            | Gateway       | Broadcast     | Usable Hosts |
-| ---- | ---------- | ---------------- | --------------- | ------------- | ------------- | ------------ |
-| 10   | ALUMNOS    | 192.168.0.0/23   | 255.255.254.0   | 192.168.0.1   | 192.168.1.255 | 510          |
-| 20   | PROFESORES | 192.168.2.0/26   | 255.255.255.192 | 192.168.2.1   | 192.168.2.63  | 62           |
-| 40   | INVITADOS  | 192.168.2.64/27  | 255.255.255.224 | 192.168.2.65  | 192.168.2.95  | 30           |
-| 50   | SERVERS    | 192.168.2.96/29  | 255.255.255.248 | 192.168.2.97  | 192.168.2.103 | 6            |
-| 99   | MGMT       | 192.168.2.104/29 | 255.255.255.248 | 192.168.2.105 | 192.168.2.111 | 6            |
-| 30   | ADMINS     | 192.168.2.112/29 | 255.255.255.248 | 192.168.2.113 | 192.168.2.119 | 6            |
+| VLAN | Name       | Network       | CIDR | Subnet Mask     | Gateway       | Broadcast     | Usable Hosts |
+| ---- | ---------- | ------------- | ---- | --------------- | ------------- | ------------- | -----------: |
+| 10   | ALUMNOS    | 192.168.0.0   | /23  | 255.255.254.0   | 192.168.0.1   | 192.168.1.255 |          510 |
+| 20   | PROFESORES | 192.168.2.0   | /26  | 255.255.255.192 | 192.168.2.1   | 192.168.2.63  |           62 |
+| 40   | INVITADOS  | 192.168.2.64  | /27  | 255.255.255.224 | 192.168.2.65  | 192.168.2.95  |           30 |
+| 50   | SERVERS    | 192.168.2.96  | /29  | 255.255.255.248 | 192.168.2.97  | 192.168.2.103 |            6 |
+| 99   | MGMT       | 192.168.2.104 | /29  | 255.255.255.248 | 192.168.2.105 | 192.168.2.111 |            6 |
+| 30   | ADMINS     | 192.168.2.112 | /29  | 255.255.255.248 | 192.168.2.113 | 192.168.2.119 |            6 |
 
 ---
 
 ## 🧮 VLSM Design
 
-VLSM was applied according to the estimated number of hosts required by each department.
+VLSM was used to assign IP ranges according to the estimated number of hosts required by each department.
 
-### Students VLAN
+The main network is:
 
-The students network required around **270 hosts**.
+```text
+192.168.0.0/22
+```
+
+The VLANs were ordered from largest to smallest host requirement.
+
+### VLAN 10 — ALUMNOS
+
+The students VLAN required around **270 hosts**.
 
 ```text
 2^8 - 2 = 254 hosts ❌
 2^9 - 2 = 510 hosts ✅
 ```
 
-Therefore, VLAN 10 uses:
+Therefore, VLAN 10 uses a `/23` subnet:
 
 ```text
 192.168.0.0/23
 ```
 
-### Teachers VLAN
+### VLAN 20 — PROFESORES
 
-The teachers network required around **35 hosts**.
+The teachers VLAN required around **35 hosts**.
 
 ```text
 2^5 - 2 = 30 hosts ❌
 2^6 - 2 = 62 hosts ✅
 ```
 
-Therefore, VLAN 20 uses:
+Therefore, VLAN 20 uses a `/26` subnet:
 
 ```text
 192.168.2.0/26
 ```
 
-### Guests, Servers, Management and Admins
+### Smaller VLANs
 
-Smaller departments use smaller subnets to avoid wasting IP addresses:
+Smaller networks were assigned smaller subnets:
 
 ```text
-Guests  → /27
-Servers → /29
-MGMT    → /29
-Admins  → /29
+INVITADOS → /27
+SERVERS   → /29
+MGMT      → /29
+ADMINS    → /29
 ```
+
+This avoids wasting IP addresses and keeps the design scalable.
 
 ---
 
 ## 🔀 Inter-VLAN Routing
 
-Inter-VLAN routing is performed by the multilayer switch `MLS-CORE`.
-
-Each VLAN has its own SVI configured as the default gateway:
+Inter-VLAN routing is performed by the multilayer switch:
 
 ```text
-VLAN 10 → 192.168.0.1
-VLAN 20 → 192.168.2.1
-VLAN 40 → 192.168.2.65
-VLAN 50 → 192.168.2.97
-VLAN 99 → 192.168.2.105
-VLAN 30 → 192.168.2.113
+MLS-CORE
 ```
 
-The multilayer switch has IP routing enabled:
+Each VLAN has its own SVI configured as the default gateway.
+
+Layer 3 routing is enabled with:
 
 ```bash
 ip routing
 ```
+
+Main VLAN gateways:
+
+| VLAN                 | Gateway       |
+| -------------------- | ------------- |
+| VLAN 10 — ALUMNOS    | 192.168.0.1   |
+| VLAN 20 — PROFESORES | 192.168.2.1   |
+| VLAN 40 — INVITADOS  | 192.168.2.65  |
+| VLAN 50 — SERVERS    | 192.168.2.97  |
+| VLAN 99 — MGMT       | 192.168.2.105 |
+| VLAN 30 — ADMINS     | 192.168.2.113 |
 
 ---
 
@@ -169,32 +185,58 @@ DHCP is centralized on the server:
 SERVER-WEB → 192.168.2.98
 ```
 
-The server provides DHCP addresses for:
+DHCP is used for:
 
 * VLAN 10 — ALUMNOS
 * VLAN 20 — PROFESORES
 * VLAN 40 — INVITADOS
 * VLAN 30 — ADMINS
 
-The following VLANs use static addressing:
+Static addressing is used for:
 
 * VLAN 50 — SERVERS
 * VLAN 99 — MGMT
 
-DHCP relay is configured on the multilayer switch using `ip helper-address`:
+DHCP relay is configured on `MLS-CORE` using:
 
 ```bash
-interface vlan 10
- ip helper-address 192.168.2.98
+ip helper-address 192.168.2.98
+```
 
-interface vlan 20
- ip helper-address 192.168.2.98
+### DHCP Pools
 
-interface vlan 30
- ip helper-address 192.168.2.98
+| VLAN | Pool Name  | Start IP      | Subnet Mask     | Default Gateway |
+| ---- | ---------- | ------------- | --------------- | --------------- |
+| 10   | ALUMNOS    | 192.168.0.20  | 255.255.254.0   | 192.168.0.1     |
+| 20   | PROFESORES | 192.168.2.10  | 255.255.255.192 | 192.168.2.1     |
+| 40   | INVITADOS  | 192.168.2.70  | 255.255.255.224 | 192.168.2.65    |
+| 30   | ADMINS     | 192.168.2.114 | 255.255.255.248 | 192.168.2.113   |
 
-interface vlan 40
- ip helper-address 192.168.2.98
+---
+
+## 🛣️ Routing to Edge Router
+
+The connection between `MLS-CORE` and `R-INTERNET` uses a point-to-point network:
+
+```text
+10.0.0.0/30
+```
+
+| Device       | IP Address |
+| ------------ | ---------- |
+| `R-INTERNET` | 10.0.0.1   |
+| `MLS-CORE`   | 10.0.0.2   |
+
+Static default route on `MLS-CORE`:
+
+```bash
+ip route 0.0.0.0 0.0.0.0 10.0.0.1
+```
+
+Static route on `R-INTERNET` back to the internal network:
+
+```bash
+ip route 192.168.0.0 255.255.252.0 10.0.0.2
 ```
 
 ---
@@ -203,24 +245,22 @@ interface vlan 40
 
 The network applies ACLs to control traffic between VLANs.
 
-### Security Rules
-
 | Source      | Destination             | Result  |
 | ----------- | ----------------------- | ------- |
 | ALUMNOS     | SERVERS                 | Blocked |
-| INVITADOS   | Internal Networks       | Blocked |
+| INVITADOS   | Internal networks       | Blocked |
 | PROFESORES  | SERVERS                 | Allowed |
 | ADMINS      | SERVERS                 | Allowed |
-| ADMINS      | Network Devices via SSH | Allowed |
-| Other VLANs | Network Devices via SSH | Blocked |
+| ADMINS      | Network devices via SSH | Allowed |
+| Other VLANs | Network devices via SSH | Blocked |
 
 ---
 
-## 🚫 ACL Policy
+## 🚫 ACL Configuration
 
 ### Students ACL
 
-Students are not allowed to access the server network:
+Students are not allowed to access the server VLAN.
 
 ```bash
 ip access-list extended ACL_ALUMNOS
@@ -239,7 +279,7 @@ interface vlan 10
 
 ### Guests ACL
 
-Guests are not allowed to access internal networks:
+Guests are not allowed to access internal school networks.
 
 ```bash
 ip access-list extended ACL_INVITADOS
@@ -266,7 +306,12 @@ Allowed admin network:
 192.168.2.112/29
 ```
 
-Standard ACL used for SSH access control:
+Managed devices:
+
+* `MLS-CORE`
+* `R-INTERNET`
+
+Standard ACL used for SSH management:
 
 ```bash
 ip access-list standard SSH_ADMINS_ONLY
@@ -283,30 +328,34 @@ line vty 0 15
  access-class SSH_ADMINS_ONLY in
 ```
 
-This allows only admin devices to manage:
+Example SSH commands from an admin PC:
 
-* `MLS-CORE`
-* `R-INTERNET`
+```bash
+ssh -l admin 192.168.2.105
+ssh -l admin 10.0.0.1
+```
 
 ---
 
 ## 🧪 Testing & Validation
 
-The following tests were performed to verify the network behavior.
+The following tests were performed:
 
-### Connectivity Tests
-
-| Test                         | Expected Result | Status |
-| ---------------------------- | --------------- | ------ |
-| Student PC → Student Gateway | Successful      | ✅      |
-| Teacher PC → Teacher Gateway | Successful      | ✅      |
-| Admin PC → Admin Gateway     | Successful      | ✅      |
-| Guest PC → Guest Gateway     | Successful      | ✅      |
-| Teacher PC → SERVER-WEB      | Successful      | ✅      |
-| Admin PC → SERVER-WEB        | Successful      | ✅      |
-| Student PC → SERVER-WEB      | Blocked         | ✅      |
-| Guest PC → SERVER-WEB        | Blocked         | ✅      |
-| Guest PC → Students Network  | Blocked         | ✅      |
+| Test                             | Expected Result | Status |
+| -------------------------------- | --------------- | ------ |
+| Student PC → Student Gateway     | Successful      | ✅      |
+| Teacher PC → Teacher Gateway     | Successful      | ✅      |
+| Admin PC → Admin Gateway         | Successful      | ✅      |
+| Guest PC → Guest Gateway         | Successful      | ✅      |
+| Teacher PC → SERVER-WEB          | Successful      | ✅      |
+| Admin PC → SERVER-WEB            | Successful      | ✅      |
+| Student PC → SERVER-WEB          | Blocked         | ✅      |
+| Guest PC → SERVER-WEB            | Blocked         | ✅      |
+| Guest PC → Student Network       | Blocked         | ✅      |
+| Admin PC → MLS-CORE via SSH      | Successful      | ✅      |
+| Admin PC → R-INTERNET via SSH    | Successful      | ✅      |
+| Non-admin VLANs → SSH Management | Blocked         | ✅      |
+| DHCP address assignment          | Successful      | ✅      |
 
 ---
 
@@ -322,6 +371,7 @@ enterprise-school-network/
 │   └── enterprise-school-network.pkt
 │
 ├── configs/
+│   ├── README.md
 │   ├── MLS-CORE.txt
 │   ├── R-INTERNET.txt
 │   ├── SW-ALUMNOS.txt
@@ -343,38 +393,43 @@ enterprise-school-network/
 └── tests/
     ├── connectivity-tests.md
     ├── dhcp-tests.md
-    └── acl-tests.md
+    ├── acl-tests.md
+    └── ssh-tests.md
 ```
 
 ---
 
-## 📂 Folder Description
+## 📚 Documentation
 
-### `topology/`
+### Design Documentation
 
-Contains the Packet Tracer topology file and an image of the final network design.
+* [Addressing Plan](docs/addressing-plan.md)
+* [VLSM Calculation](docs/vlsm-calculation.md)
+* [VLAN Design](docs/vlan-design.md)
+* [Network Services](docs/network-services.md)
 
-### `configs/`
+### Security Documentation
 
-Contains the running configuration of each network device.
+* [ACL Security Policy](security/acl-policy.md)
+* [SSH Management](security/ssh-management.md)
 
-Recommended command:
+### Testing Documentation
 
-```bash
-show running-config
-```
+* [Connectivity Tests](tests/connectivity-tests.md)
+* [DHCP Tests](tests/dhcp-tests.md)
+* [ACL Tests](tests/acl-tests.md)
+* [SSH Tests](tests/ssh-tests.md)
 
-### `docs/`
+### Device Configurations
 
-Contains documentation about the addressing plan, VLSM calculation, VLAN design and network services.
-
-### `security/`
-
-Contains ACL documentation and SSH management restrictions.
-
-### `tests/`
-
-Contains evidence of network validation, such as ping tests, DHCP tests, ACL tests and screenshots.
+* [Configuration Folder](configs/README.md)
+* [MLS-CORE Configuration](configs/MLS-CORE.txt)
+* [R-INTERNET Configuration](configs/R-INTERNET.txt)
+* [SW-ALUMNOS Configuration](configs/SW-ALUMNOS.txt)
+* [SW-PROFESORES Configuration](configs/SW-PROFESORES.txt)
+* [SW-INVITADOS Configuration](configs/SW-INVITADOS.txt)
+* [SW-SERVERS Configuration](configs/SW-SERVERS.txt)
+* [SW-ADMINS Configuration](configs/SW-ADMINS.txt)
 
 ---
 
