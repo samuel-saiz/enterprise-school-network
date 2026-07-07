@@ -4,13 +4,14 @@
 
 This project simulates a **real-world enterprise network** for an educational institution using **Cisco Packet Tracer**.
 
-The network is designed with segmentation, scalability and security in mind. It includes **VLANs**, **VLSM subnetting**, **inter-VLAN routing**, **centralized DHCP**, **ACL-based traffic filtering** and **SSH management restricted to the administration network**.
+The network is designed with segmentation, scalability and security in mind. It includes **VLANs**, **VLSM subnetting**, **inter-VLAN routing**, **centralized DHCP**, **ACL-based traffic filtering**, **SSH management restricted to the administration network**, and **NAT/PAT per VLAN** for simulated Internet access.
 
 The design follows a hierarchical network model:
 
 * **Core Layer** → Multilayer Switch
 * **Access Layer** → Layer 2 Switches
 * **Edge Layer** → Router for external network access
+* **ISP Layer** → Simulated ISP router and Internet server
 
 ---
 
@@ -23,18 +24,22 @@ The design follows a hierarchical network model:
 * Deploy centralized DHCP from the server VLAN
 * Apply ACLs to restrict access between departments
 * Allow SSH management only from the admin network
-* Validate the network using connectivity and security tests
+* Add simulated Internet access using an ISP router
+* Configure NAT/PAT per VLAN using different public IP addresses
+* Validate the network using connectivity, DHCP, ACL, SSH and NAT tests
 
 ---
 
 ## 🧩 Network Architecture
 
 ```text
-                    🌐 External Network
-                            |
-                       R-INTERNET
-                            |
-                        MLS-CORE
+                    INTERNET-SERVER
+                          |
+                        R-ISP
+                          |
+                      R-INTERNET
+                          |
+                       MLS-CORE
           ┌────────────┬────────────┬────────────┬────────────┬────────────┐
           |            |            |            |            |
      SW-ALUMNOS   SW-PROFESORES  SW-INVITADOS  SW-SERVERS  SW-ADMINS
@@ -46,23 +51,25 @@ The design follows a hierarchical network model:
 
 ## 🖥️ Devices Used
 
-| Device Role     | Device Name     | Model                        |
-| --------------- | --------------- | ---------------------------- |
-| Router          | `R-INTERNET`    | Cisco 2911                   |
-| Core Switch     | `MLS-CORE`      | Cisco 3560 Multilayer Switch |
-| Students Switch | `SW-ALUMNOS`    | Cisco 2960                   |
-| Teachers Switch | `SW-PROFESORES` | Cisco 2960                   |
-| Guests Switch   | `SW-INVITADOS`  | Cisco 2960                   |
-| Servers Switch  | `SW-SERVERS`    | Cisco 2960                   |
-| Admin Switch    | `SW-ADMINS`     | Cisco 2960                   |
-| Server          | `SERVER-WEB`    | Server-PT                    |
-| Clients         | PCs             | PC-PT                        |
+| Device Role     | Device Name       | Model                        |
+| --------------- | ----------------- | ---------------------------- |
+| ISP Router      | `R-ISP`           | Cisco 2911                   |
+| Edge Router     | `R-INTERNET`      | Cisco 2911                   |
+| Core Switch     | `MLS-CORE`        | Cisco 3560 Multilayer Switch |
+| Students Switch | `SW-ALUMNOS`      | Cisco 2960                   |
+| Teachers Switch | `SW-PROFESORES`   | Cisco 2960                   |
+| Guests Switch   | `SW-INVITADOS`    | Cisco 2960                   |
+| Servers Switch  | `SW-SERVERS`      | Cisco 2960                   |
+| Admin Switch    | `SW-ADMINS`       | Cisco 2960                   |
+| Internal Server | `SERVER-WEB`      | Server-PT                    |
+| External Server | `INTERNET-SERVER` | Server-PT                    |
+| Clients         | PCs               | PC-PT                        |
 
 ---
 
-## 🌐 Main Network
+## 🌐 Main Internal Network
 
-The main network used for this project is:
+The main internal network used for this project is:
 
 ```text
 192.168.0.0/22
@@ -179,7 +186,7 @@ Main VLAN gateways:
 
 ## 📡 DHCP Service
 
-DHCP is centralized on the server:
+DHCP is centralized on the internal server:
 
 ```text
 SERVER-WEB → 192.168.2.98
@@ -214,29 +221,155 @@ ip helper-address 192.168.2.98
 
 ---
 
-## 🛣️ Routing to Edge Router
+## 🌍 ISP Simulation
 
-The connection between `MLS-CORE` and `R-INTERNET` uses a point-to-point network:
+An external ISP router and an Internet server were added to simulate Internet access.
+
+### ISP Link
+
+The link between `R-INTERNET` and `R-ISP` uses:
 
 ```text
-10.0.0.0/30
+203.0.113.0/30
 ```
 
-| Device       | IP Address |
-| ------------ | ---------- |
-| `R-INTERNET` | 10.0.0.1   |
-| `MLS-CORE`   | 10.0.0.2   |
+| Device       | Interface | IP Address  |
+| ------------ | --------- | ----------- |
+| `R-ISP`      | G0/0      | 203.0.113.1 |
+| `R-INTERNET` | G0/1      | 203.0.113.2 |
 
-Static default route on `MLS-CORE`:
+### Internet Server Network
+
+The external Internet server network uses:
+
+```text
+8.8.8.0/24
+```
+
+| Device            | Interface | IP Address |
+| ----------------- | --------- | ---------- |
+| `R-ISP`           | G0/1      | 8.8.8.1    |
+| `INTERNET-SERVER` | Fa0       | 8.8.8.8    |
+
+The `INTERNET-SERVER` uses the following gateway:
+
+```text
+8.8.8.1
+```
+
+---
+
+## 🛣️ Routing to External Network
+
+Static routing is used between `MLS-CORE`, `R-INTERNET` and `R-ISP`.
+
+### On MLS-CORE
+
+Default route toward `R-INTERNET`:
 
 ```bash
 ip route 0.0.0.0 0.0.0.0 10.0.0.1
 ```
 
-Static route on `R-INTERNET` back to the internal network:
+### On R-INTERNET
+
+Route back to the internal school network:
 
 ```bash
 ip route 192.168.0.0 255.255.252.0 10.0.0.2
+```
+
+Default route toward `R-ISP`:
+
+```bash
+ip route 0.0.0.0 0.0.0.0 203.0.113.1
+```
+
+### On R-ISP
+
+Route toward the internal school network:
+
+```bash
+ip route 192.168.0.0 255.255.252.0 203.0.113.2
+```
+
+Route toward the transit network between `MLS-CORE` and `R-INTERNET`:
+
+```bash
+ip route 10.0.0.0 255.255.255.252 203.0.113.2
+```
+
+Route toward the NAT public pool:
+
+```bash
+ip route 203.0.113.8 255.255.255.248 203.0.113.2
+```
+
+---
+
+## 🔁 NAT/PAT per VLAN
+
+NAT/PAT is configured on `R-INTERNET`.
+
+Each VLAN uses a different public IP address when accessing the external network. This allows the administrator to identify which VLAN generated the traffic.
+
+| VLAN | Name       | Private Network  | Public NAT IP |
+| ---- | ---------- | ---------------- | ------------- |
+| 10   | ALUMNOS    | 192.168.0.0/23   | 203.0.113.10  |
+| 20   | PROFESORES | 192.168.2.0/26   | 203.0.113.11  |
+| 40   | INVITADOS  | 192.168.2.64/27  | 203.0.113.12  |
+| 30   | ADMINS     | 192.168.2.112/29 | 203.0.113.13  |
+| 50   | SERVERS    | 192.168.2.96/29  | 203.0.113.14  |
+
+### NAT Inside and Outside Interfaces
+
+```bash
+interface gigabitEthernet 0/0
+ description Link to MLS-CORE
+ ip nat inside
+
+interface gigabitEthernet 0/1
+ description Link to R-ISP
+ ip nat outside
+```
+
+### NAT ACLs
+
+```bash
+ip access-list standard NAT_ALUMNOS
+ permit 192.168.0.0 0.0.1.255
+
+ip access-list standard NAT_PROFESORES
+ permit 192.168.2.0 0.0.0.63
+
+ip access-list standard NAT_INVITADOS
+ permit 192.168.2.64 0.0.0.31
+
+ip access-list standard NAT_ADMINS
+ permit 192.168.2.112 0.0.0.7
+
+ip access-list standard NAT_SERVERS
+ permit 192.168.2.96 0.0.0.7
+```
+
+### NAT Pools
+
+```bash
+ip nat pool NAT_POOL_ALUMNOS 203.0.113.10 203.0.113.10 netmask 255.255.255.248
+ip nat pool NAT_POOL_PROFESORES 203.0.113.11 203.0.113.11 netmask 255.255.255.248
+ip nat pool NAT_POOL_INVITADOS 203.0.113.12 203.0.113.12 netmask 255.255.255.248
+ip nat pool NAT_POOL_ADMINS 203.0.113.13 203.0.113.13 netmask 255.255.255.248
+ip nat pool NAT_POOL_SERVERS 203.0.113.14 203.0.113.14 netmask 255.255.255.248
+```
+
+### NAT Overload
+
+```bash
+ip nat inside source list NAT_ALUMNOS pool NAT_POOL_ALUMNOS overload
+ip nat inside source list NAT_PROFESORES pool NAT_POOL_PROFESORES overload
+ip nat inside source list NAT_INVITADOS pool NAT_POOL_INVITADOS overload
+ip nat inside source list NAT_ADMINS pool NAT_POOL_ADMINS overload
+ip nat inside source list NAT_SERVERS pool NAT_POOL_SERVERS overload
 ```
 
 ---
@@ -245,14 +378,15 @@ ip route 192.168.0.0 255.255.252.0 10.0.0.2
 
 The network applies ACLs to control traffic between VLANs.
 
-| Source      | Destination             | Result  |
-| ----------- | ----------------------- | ------- |
-| ALUMNOS     | SERVERS                 | Blocked |
-| INVITADOS   | Internal networks       | Blocked |
-| PROFESORES  | SERVERS                 | Allowed |
-| ADMINS      | SERVERS                 | Allowed |
-| ADMINS      | Network devices via SSH | Allowed |
-| Other VLANs | Network devices via SSH | Blocked |
+| Source         | Destination             | Result                  |
+| -------------- | ----------------------- | ----------------------- |
+| ALUMNOS        | SERVERS                 | Blocked                 |
+| INVITADOS      | Internal networks       | Blocked                 |
+| PROFESORES     | SERVERS                 | Allowed                 |
+| ADMINS         | SERVERS                 | Allowed                 |
+| ADMINS         | Network devices via SSH | Allowed                 |
+| Other VLANs    | Network devices via SSH | Blocked                 |
+| Internal VLANs | INTERNET-SERVER         | Allowed through NAT/PAT |
 
 ---
 
@@ -341,21 +475,49 @@ ssh -l admin 10.0.0.1
 
 The following tests were performed:
 
-| Test                             | Expected Result | Status |
-| -------------------------------- | --------------- | ------ |
-| Student PC → Student Gateway     | Successful      | ✅      |
-| Teacher PC → Teacher Gateway     | Successful      | ✅      |
-| Admin PC → Admin Gateway         | Successful      | ✅      |
-| Guest PC → Guest Gateway         | Successful      | ✅      |
-| Teacher PC → SERVER-WEB          | Successful      | ✅      |
-| Admin PC → SERVER-WEB            | Successful      | ✅      |
-| Student PC → SERVER-WEB          | Blocked         | ✅      |
-| Guest PC → SERVER-WEB            | Blocked         | ✅      |
-| Guest PC → Student Network       | Blocked         | ✅      |
-| Admin PC → MLS-CORE via SSH      | Successful      | ✅      |
-| Admin PC → R-INTERNET via SSH    | Successful      | ✅      |
-| Non-admin VLANs → SSH Management | Blocked         | ✅      |
-| DHCP address assignment          | Successful      | ✅      |
+| Test                             | Expected Result            | Status |
+| -------------------------------- | -------------------------- | ------ |
+| Student PC → Student Gateway     | Successful                 | ✅      |
+| Teacher PC → Teacher Gateway     | Successful                 | ✅      |
+| Admin PC → Admin Gateway         | Successful                 | ✅      |
+| Guest PC → Guest Gateway         | Successful                 | ✅      |
+| Teacher PC → SERVER-WEB          | Successful                 | ✅      |
+| Admin PC → SERVER-WEB            | Successful                 | ✅      |
+| Student PC → SERVER-WEB          | Blocked                    | ✅      |
+| Guest PC → SERVER-WEB            | Blocked                    | ✅      |
+| Guest PC → Student Network       | Blocked                    | ✅      |
+| Admin PC → MLS-CORE via SSH      | Successful                 | ✅      |
+| Admin PC → R-INTERNET via SSH    | Successful                 | ✅      |
+| Non-admin VLANs → SSH Management | Blocked                    | ✅      |
+| DHCP address assignment          | Successful                 | ✅      |
+| Internal VLANs → INTERNET-SERVER | Successful through NAT/PAT | ✅      |
+| NAT translation per VLAN         | Successful                 | ✅      |
+
+---
+
+## 🔍 NAT Verification
+
+NAT translations can be verified on `R-INTERNET` using:
+
+```bash
+show ip nat translations
+```
+
+Expected behavior:
+
+| Internal Source   | Expected Public IP |
+| ----------------- | ------------------ |
+| Student VLAN host | 203.0.113.10       |
+| Teacher VLAN host | 203.0.113.11       |
+| Guest VLAN host   | 203.0.113.12       |
+| Admin VLAN host   | 203.0.113.13       |
+| Server VLAN host  | 203.0.113.14       |
+
+Additional verification command:
+
+```bash
+show ip nat statistics
+```
 
 ---
 
@@ -374,6 +536,7 @@ enterprise-school-network/
 │   ├── README.md
 │   ├── MLS-CORE.txt
 │   ├── R-INTERNET.txt
+│   ├── R-ISP.txt
 │   ├── SW-ALUMNOS.txt
 │   ├── SW-PROFESORES.txt
 │   ├── SW-INVITADOS.txt
@@ -394,7 +557,8 @@ enterprise-school-network/
     ├── connectivity-tests.md
     ├── dhcp-tests.md
     ├── acl-tests.md
-    └── ssh-tests.md
+    ├── ssh-tests.md
+    └── nat-tests.md
 ```
 
 ---
@@ -419,12 +583,14 @@ enterprise-school-network/
 * [DHCP Tests](tests/dhcp-tests.md)
 * [ACL Tests](tests/acl-tests.md)
 * [SSH Tests](tests/ssh-tests.md)
+* [NAT Tests](tests/nat-tests.md)
 
 ### Device Configurations
 
 * [Configuration Folder](configs/README.md)
 * [MLS-CORE Configuration](configs/MLS-CORE.txt)
 * [R-INTERNET Configuration](configs/R-INTERNET.txt)
+* [R-ISP Configuration](configs/R-ISP.txt)
 * [SW-ALUMNOS Configuration](configs/SW-ALUMNOS.txt)
 * [SW-PROFESORES Configuration](configs/SW-PROFESORES.txt)
 * [SW-INVITADOS Configuration](configs/SW-INVITADOS.txt)
@@ -445,6 +611,9 @@ enterprise-school-network/
 * DHCP Relay
 * ACLs
 * SSH
+* NAT/PAT
+* Static Routing
+* ISP Simulation
 * Layer 2 Switching
 * Layer 3 Switching
 
@@ -452,13 +621,13 @@ enterprise-school-network/
 
 ## 🚀 Future Improvements
 
-* Add NAT for simulated internet access
 * Add DNS records for internal services
 * Add a web service for the school intranet
 * Add STP documentation
 * Add EtherChannel between core and access switches
 * Add firewall simulation
 * Add monitoring using SNMP or Syslog
+* Add redundancy between core and edge layers
 
 ---
 
