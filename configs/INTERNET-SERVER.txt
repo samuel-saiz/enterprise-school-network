@@ -1,0 +1,139 @@
+# INTERNET-SERVER Configuration
+
+Device role: External Server
+Model: Server-PT
+Function: Simulated Internet server used to validate external connectivity and NAT/PAT from the internal VLANs.
+
+---
+
+## Basic Information
+
+```text
+Device Name: INTERNET-SERVER
+Device Type: Server-PT
+Network: 8.8.8.0/24
+```
+
+---
+
+## IP Configuration
+
+The `INTERNET-SERVER` is connected to `R-ISP`.
+
+```text
+IP Address: 8.8.8.8
+Subnet Mask: 255.255.255.0
+Default Gateway: 8.8.8.1
+DNS Server: 8.8.8.8
+```
+
+---
+
+## Connected Router
+
+| Device            | Interface | IP Address |
+| ----------------- | --------- | ---------- |
+| `R-ISP`           | G0/1      | 8.8.8.1    |
+| `INTERNET-SERVER` | Fa0       | 8.8.8.8    |
+
+---
+
+## Purpose
+
+This server simulates an external Internet host.
+
+It is used to test:
+
+* External connectivity
+* Static routing
+* NAT/PAT translation
+* Internet access from internal VLANs
+
+---
+
+## NAT/PAT Validation
+
+Internal VLANs should be able to reach this server through NAT/PAT configured on `R-INTERNET`.
+
+Expected NAT public IPs:
+
+| Source VLAN | Private Network  | Public NAT IP |
+| ----------- | ---------------- | ------------- |
+| ALUMNOS     | 192.168.0.0/23   | 203.0.113.10  |
+| PROFESORES  | 192.168.2.0/26   | 203.0.113.11  |
+| INVITADOS   | 192.168.2.64/27  | 203.0.113.12  |
+| ADMINS      | 192.168.2.112/29 | 203.0.113.13  |
+| SERVERS     | 192.168.2.96/29  | 203.0.113.14  |
+
+---
+
+## Connectivity Tests
+
+From `R-ISP`:
+
+```bash
+ping 8.8.8.8
+```
+
+Expected result:
+
+```text
+Reply from 8.8.8.8
+```
+
+---
+
+From an internal VLAN client:
+
+```bash
+ping 8.8.8.8
+```
+
+Expected result:
+
+```text
+Reply from 8.8.8.8
+```
+
+---
+
+## Verification on R-INTERNET
+
+After generating traffic from internal VLANs, verify NAT translations on `R-INTERNET`:
+
+```bash
+show ip nat translations
+```
+
+Expected result:
+
+```text
+Inside local address translated to the assigned public NAT IP
+```
+
+Example:
+
+```text
+192.168.2.70  → 203.0.113.12
+192.168.2.114 → 203.0.113.13
+192.168.2.98  → 203.0.113.14
+```
+
+---
+
+## Optional Services
+
+The server can also be used in future improvements for:
+
+* HTTP testing
+* DNS testing
+* External web simulation
+* ICMP connectivity validation
+
+---
+
+## Notes
+
+This server is not part of the internal school network.
+
+It represents an external host used to test Internet access and NAT behavior in a controlled Cisco Packet Tracer environment.
