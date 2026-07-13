@@ -1,370 +1,244 @@
 # 🏫 Enterprise School Network
 
-## 📌 Project Overview
+![Cisco Packet Tracer](https://img.shields.io/badge/Cisco-Packet%20Tracer-1BA0D7?style=flat-square&logo=cisco&logoColor=white)
+![Networking](https://img.shields.io/badge/Focus-Enterprise%20Networking-blue?style=flat-square)
+![Status](https://img.shields.io/badge/Status-Version%202%20In%20Development-orange?style=flat-square)
+![License](https://img.shields.io/badge/License-Educational-lightgrey?style=flat-square)
 
-This project simulates a **real-world enterprise network** for an educational institution using **Cisco Packet Tracer**.
+## Project Overview
 
-The network is designed with segmentation, scalability and security in mind. It includes **VLANs**, **VLSM subnetting**, **inter-VLAN routing**, **centralized DHCP**, **ACL-based traffic filtering**, **SSH management restricted to the administration network**, and **NAT/PAT per VLAN** for simulated Internet access.
+**Enterprise School Network** is a Cisco Packet Tracer project that simulates the network infrastructure of an educational institution.
 
-The design follows a hierarchical network model:
+The project was designed to apply enterprise networking concepts in a realistic environment, including network segmentation, IP address planning, centralized services, secure administration, controlled inter-VLAN communication and simulated Internet access.
 
-* **Core Layer** → Multilayer Switch
-* **Access Layer** → Layer 2 Switches
-* **Edge Layer** → Router for external network access
-* **ISP Layer** → Simulated ISP router and Internet server
+The network is being developed incrementally:
 
----
-
-## 🎯 Objectives
-
-* Design a realistic school network topology
-* Segment the network using VLANs
-* Apply VLSM subnetting based on real host requirements
-* Configure inter-VLAN routing on a multilayer switch
-* Deploy centralized DHCP from the server VLAN
-* Apply ACLs to restrict access between departments
-* Allow SSH management only from the admin network
-* Add simulated Internet access using an ISP router
-* Configure NAT/PAT per VLAN using different public IP addresses
-* Validate the network using connectivity, DHCP, ACL, SSH and NAT tests
+- **Version 1** implements a fully functional segmented network.
+- **Version 2** introduces redundancy and High Availability.
 
 ---
 
-## 🧩 Network Architecture
+## Project Versions
+
+| Version | Description | Status |
+|:-------:|-------------|:------:|
+| [Version 1](topology/v1/) | Functional enterprise network with VLANs, VLSM, DHCP, ACLs, SSH and NAT/PAT | ✅ Completed |
+| [Version 2](topology/v2/) | Redundant core architecture with HSRP, Rapid PVST and dual uplinks | 🚧 In development |
+
+---
+
+## Main Features
+
+### Version 1 — Functional Network
+
+- VLAN-based network segmentation
+- VLSM subnetting
+- Inter-VLAN routing
+- Centralized DHCP service
+- DHCP Relay
+- ACL-based traffic filtering
+- Restricted SSH administration
+- Static routing
+- Simulated ISP connectivity
+- NAT/PAT with a different public IP per VLAN
+- Connectivity and security validation
+
+### Version 2 — High Availability
+
+Version 2 builds on the original design and adds:
+
+- Two multilayer core switches
+- Redundant default gateways using HSRP
+- Rapid PVST
+- Primary and secondary root bridges
+- Dual uplinks from the access layer
+- Layer 2 failover
+- Gateway failover
+- Core failure validation
+
+---
+
+## Network Architecture
+
+### Version 1
 
 ```text
                     INTERNET-SERVER
-                          |
-                        R-ISP
-                          |
-                      R-INTERNET
-                          |
-                       MLS-CORE
-          ┌────────────┬────────────┬────────────┬────────────┬────────────┐
-          |            |            |            |            |
-     SW-ALUMNOS   SW-PROFESORES  SW-INVITADOS  SW-SERVERS  SW-ADMINS
-          |            |            |            |            |
+                           |
+                         R-ISP
+                           |
+                       R-INTERNET
+                           |
+                        MLS-CORE
+          ┌────────────┬────────────┬────────────┬────────────┐
+          │            │            │            │            │
+     SW-ALUMNOS  SW-PROFESORES SW-INVITADOS SW-SERVERS  SW-ADMINS
+          │            │            │            │            │
          PCs          PCs          PCs        SERVER-WEB      PCs
 ```
 
+Version 1 uses a collapsed core design in which `MLS-CORE` performs Layer 3 switching and inter-VLAN routing.
+
+### Version 2
+
+```text
+                       INTERNET-SERVER
+                              |
+                            R-ISP
+                              |
+                          R-INTERNET
+                         /          \
+               MLS-CORE-1 ===== MLS-CORE-2
+                    ||               ||
+                    ||               ||
+             ===============================
+                   Access Layer Switches
+```
+
+Version 2 removes the single point of failure at the core layer by introducing a second multilayer switch and redundant uplinks.
+
 ---
 
-## 🖥️ Devices Used
+## Network Segmentation
 
-| Device Role     | Device Name       | Model                        |
-| --------------- | ----------------- | ---------------------------- |
-| ISP Router      | `R-ISP`           | Cisco 2911                   |
-| Edge Router     | `R-INTERNET`      | Cisco 2911                   |
-| Core Switch     | `MLS-CORE`        | Cisco 3560 Multilayer Switch |
-| Students Switch | `SW-ALUMNOS`      | Cisco 2960                   |
-| Teachers Switch | `SW-PROFESORES`   | Cisco 2960                   |
-| Guests Switch   | `SW-INVITADOS`    | Cisco 2960                   |
-| Servers Switch  | `SW-SERVERS`      | Cisco 2960                   |
-| Admin Switch    | `SW-ADMINS`       | Cisco 2960                   |
-| Internal Server | `SERVER-WEB`      | Server-PT                    |
-| External Server | `INTERNET-SERVER` | Server-PT                    |
-| Clients         | PCs               | PC-PT                        |
-
----
-
-## 🌐 Main Internal Network
-
-The main internal network used for this project is:
+The internal addressing space is:
 
 ```text
 192.168.0.0/22
 ```
 
-This provides the following range:
+VLSM is used to assign subnet sizes according to the estimated number of devices in each department.
 
-```text
-192.168.0.0 - 192.168.3.255
-```
+| VLAN | Name | Network | Prefix | Gateway | Capacity |
+|-----:|------|---------|:------:|---------|---------:|
+| 10 | ALUMNOS | `192.168.0.0` | `/23` | `192.168.0.1` | 510 hosts |
+| 20 | PROFESORES | `192.168.2.0` | `/26` | `192.168.2.1` | 62 hosts |
+| 40 | INVITADOS | `192.168.2.64` | `/27` | `192.168.2.65` | 30 hosts |
+| 50 | SERVERS | `192.168.2.96` | `/29` | `192.168.2.97` | 6 hosts |
+| 99 | MGMT | `192.168.2.104` | `/29` | `192.168.2.105` | 6 hosts |
+| 30 | ADMINS | `192.168.2.112` | `/29` | `192.168.2.113` | 6 hosts |
 
-This range was selected to allow enough address space for all VLANs and future growth.
-
----
-
-## 📊 VLAN & Addressing Plan
-
-| VLAN | Name       | Network       | CIDR | Subnet Mask     | Gateway       | Broadcast     | Usable Hosts |
-| ---- | ---------- | ------------- | ---- | --------------- | ------------- | ------------- | -----------: |
-| 10   | ALUMNOS    | 192.168.0.0   | /23  | 255.255.254.0   | 192.168.0.1   | 192.168.1.255 |          510 |
-| 20   | PROFESORES | 192.168.2.0   | /26  | 255.255.255.192 | 192.168.2.1   | 192.168.2.63  |           62 |
-| 40   | INVITADOS  | 192.168.2.64  | /27  | 255.255.255.224 | 192.168.2.65  | 192.168.2.95  |           30 |
-| 50   | SERVERS    | 192.168.2.96  | /29  | 255.255.255.248 | 192.168.2.97  | 192.168.2.103 |            6 |
-| 99   | MGMT       | 192.168.2.104 | /29  | 255.255.255.248 | 192.168.2.105 | 192.168.2.111 |            6 |
-| 30   | ADMINS     | 192.168.2.112 | /29  | 255.255.255.248 | 192.168.2.113 | 192.168.2.119 |            6 |
+The largest subnet is assigned to the student network, while smaller infrastructure and administration networks use more restrictive prefixes to reduce address waste.
 
 ---
 
-## 🧮 VLSM Design
+## Network Services
 
-VLSM was used to assign IP ranges according to the estimated number of hosts required by each department.
+### Inter-VLAN Routing
 
-The main network is:
+The multilayer core switch provides Layer 3 routing between VLANs through Switch Virtual Interfaces.
 
-```text
-192.168.0.0/22
-```
-
-The VLANs were ordered from largest to smallest host requirement.
-
-### VLAN 10 — ALUMNOS
-
-The students VLAN required around **270 hosts**.
-
-```text
-2^8 - 2 = 254 hosts ❌
-2^9 - 2 = 510 hosts ✅
-```
-
-Therefore, VLAN 10 uses a `/23` subnet:
-
-```text
-192.168.0.0/23
-```
-
-### VLAN 20 — PROFESORES
-
-The teachers VLAN required around **35 hosts**.
-
-```text
-2^5 - 2 = 30 hosts ❌
-2^6 - 2 = 62 hosts ✅
-```
-
-Therefore, VLAN 20 uses a `/26` subnet:
-
-```text
-192.168.2.0/26
-```
-
-### Smaller VLANs
-
-Smaller networks were assigned smaller subnets:
-
-```text
-INVITADOS → /27
-SERVERS   → /29
-MGMT      → /29
-ADMINS    → /29
-```
-
-This avoids wasting IP addresses and keeps the design scalable.
-
----
-
-## 🔀 Inter-VLAN Routing
-
-Inter-VLAN routing is performed by the multilayer switch:
-
-```text
-MLS-CORE
-```
-
-Each VLAN has its own SVI configured as the default gateway.
-
-Layer 3 routing is enabled with:
-
-```bash
+```cisco
 ip routing
 ```
 
-Main VLAN gateways:
+Each SVI acts as the default gateway for its corresponding VLAN.
 
-| VLAN                 | Gateway       |
-| -------------------- | ------------- |
-| VLAN 10 — ALUMNOS    | 192.168.0.1   |
-| VLAN 20 — PROFESORES | 192.168.2.1   |
-| VLAN 40 — INVITADOS  | 192.168.2.65  |
-| VLAN 50 — SERVERS    | 192.168.2.97  |
-| VLAN 99 — MGMT       | 192.168.2.105 |
-| VLAN 30 — ADMINS     | 192.168.2.113 |
+In Version 2, the physical SVI addresses are separated from the default gateway presented to clients. HSRP provides a shared virtual gateway between both multilayer switches.
 
 ---
 
-## 📡 DHCP Service
+### Centralized DHCP
 
-DHCP is centralized on the internal server:
+DHCP is hosted on the internal server:
 
 ```text
-SERVER-WEB → 192.168.2.98
+SERVER-WEB
+192.168.2.98
 ```
 
-DHCP is used for:
+The following client networks receive their addressing dynamically:
 
-* VLAN 10 — ALUMNOS
-* VLAN 20 — PROFESORES
-* VLAN 40 — INVITADOS
-* VLAN 30 — ADMINS
+- ALUMNOS
+- PROFESORES
+- INVITADOS
+- ADMINS
 
-Static addressing is used for:
+DHCP Relay is configured on the VLAN interfaces:
 
-* VLAN 50 — SERVERS
-* VLAN 99 — MGMT
-
-DHCP relay is configured on `MLS-CORE` using:
-
-```bash
+```cisco
 ip helper-address 192.168.2.98
 ```
 
-### DHCP Pools
-
-| VLAN | Pool Name  | Start IP      | Subnet Mask     | Default Gateway |
-| ---- | ---------- | ------------- | --------------- | --------------- |
-| 10   | ALUMNOS    | 192.168.0.20  | 255.255.254.0   | 192.168.0.1     |
-| 20   | PROFESORES | 192.168.2.10  | 255.255.255.192 | 192.168.2.1     |
-| 40   | INVITADOS  | 192.168.2.70  | 255.255.255.224 | 192.168.2.65    |
-| 30   | ADMINS     | 192.168.2.114 | 255.255.255.248 | 192.168.2.113   |
+Servers and management devices use static addressing.
 
 ---
 
-## 🌍 ISP Simulation
+### Internet Simulation
 
-An external ISP router and an Internet server were added to simulate Internet access.
+Internet access is simulated using:
 
-### ISP Link
+- An edge router: `R-INTERNET`
+- An ISP router: `R-ISP`
+- An external server: `INTERNET-SERVER`
 
-The link between `R-INTERNET` and `R-ISP` uses:
+```text
+Internal Network
+       |
+   R-INTERNET
+       |
+     R-ISP
+       |
+INTERNET-SERVER
+```
+
+The ISP transit link uses:
 
 ```text
 203.0.113.0/30
 ```
 
-| Device       | Interface | IP Address  |
-| ------------ | --------- | ----------- |
-| `R-ISP`      | G0/0      | 203.0.113.1 |
-| `R-INTERNET` | G0/1      | 203.0.113.2 |
-
-### Internet Server Network
-
-The external Internet server network uses:
+The simulated external server uses:
 
 ```text
-8.8.8.0/24
-```
-
-| Device            | Interface | IP Address |
-| ----------------- | --------- | ---------- |
-| `R-ISP`           | G0/1      | 8.8.8.1    |
-| `INTERNET-SERVER` | Fa0       | 8.8.8.8    |
-
-The `INTERNET-SERVER` uses the following gateway:
-
-```text
-8.8.8.1
+8.8.8.8/24
 ```
 
 ---
 
-## 🛣️ Routing to External Network
+## Routing Design
 
-Static routing is used between `MLS-CORE`, `R-INTERNET` and `R-ISP`.
+Static routes provide connectivity between the internal network, the edge router and the simulated ISP.
 
-### On MLS-CORE
+### Internal default route
 
-Default route toward `R-INTERNET`:
-
-```bash
+```cisco
 ip route 0.0.0.0 0.0.0.0 10.0.0.1
 ```
 
-### On R-INTERNET
+### Route to the internal network
 
-Route back to the internal school network:
-
-```bash
+```cisco
 ip route 192.168.0.0 255.255.252.0 10.0.0.2
 ```
 
-Default route toward `R-ISP`:
+### Edge default route
 
-```bash
+```cisco
 ip route 0.0.0.0 0.0.0.0 203.0.113.1
 ```
 
-### On R-ISP
-
-Route toward the internal school network:
-
-```bash
-ip route 192.168.0.0 255.255.252.0 203.0.113.2
-```
-
-Route toward the transit network between `MLS-CORE` and `R-INTERNET`:
-
-```bash
-ip route 10.0.0.0 255.255.255.252 203.0.113.2
-```
-
-Route toward the NAT public pool:
-
-```bash
-ip route 203.0.113.8 255.255.255.248 203.0.113.2
-```
+Version 2 will extend this routing design so that both multilayer switches maintain connectivity with the edge layer.
 
 ---
 
-## 🔁 NAT/PAT per VLAN
+## NAT/PAT Design
 
 NAT/PAT is configured on `R-INTERNET`.
 
-Each VLAN uses a different public IP address when accessing the external network. This allows the administrator to identify which VLAN generated the traffic.
+Each VLAN is translated through a different public IP address. This makes it possible to identify the source department from the translated address.
 
-| VLAN | Name       | Private Network  | Public NAT IP |
-| ---- | ---------- | ---------------- | ------------- |
-| 10   | ALUMNOS    | 192.168.0.0/23   | 203.0.113.10  |
-| 20   | PROFESORES | 192.168.2.0/26   | 203.0.113.11  |
-| 40   | INVITADOS  | 192.168.2.64/27  | 203.0.113.12  |
-| 30   | ADMINS     | 192.168.2.112/29 | 203.0.113.13  |
-| 50   | SERVERS    | 192.168.2.96/29  | 203.0.113.14  |
+| VLAN | Private Network | Public NAT IP |
+|-----:|-----------------|---------------|
+| 10 — ALUMNOS | `192.168.0.0/23` | `203.0.113.10` |
+| 20 — PROFESORES | `192.168.2.0/26` | `203.0.113.11` |
+| 40 — INVITADOS | `192.168.2.64/27` | `203.0.113.12` |
+| 30 — ADMINS | `192.168.2.112/29` | `203.0.113.13` |
+| 50 — SERVERS | `192.168.2.96/29` | `203.0.113.14` |
 
-### NAT Inside and Outside Interfaces
+Example configuration:
 
-```bash
-interface gigabitEthernet 0/0
- description Link to MLS-CORE
- ip nat inside
-
-interface gigabitEthernet 0/1
- description Link to R-ISP
- ip nat outside
-```
-
-### NAT ACLs
-
-```bash
-ip access-list standard NAT_ALUMNOS
- permit 192.168.0.0 0.0.1.255
-
-ip access-list standard NAT_PROFESORES
- permit 192.168.2.0 0.0.0.63
-
-ip access-list standard NAT_INVITADOS
- permit 192.168.2.64 0.0.0.31
-
-ip access-list standard NAT_ADMINS
- permit 192.168.2.112 0.0.0.7
-
-ip access-list standard NAT_SERVERS
- permit 192.168.2.96 0.0.0.7
-```
-
-### NAT Pools
-
-```bash
-ip nat pool NAT_POOL_ALUMNOS 203.0.113.10 203.0.113.10 netmask 255.255.255.248
-ip nat pool NAT_POOL_PROFESORES 203.0.113.11 203.0.113.11 netmask 255.255.255.248
-ip nat pool NAT_POOL_INVITADOS 203.0.113.12 203.0.113.12 netmask 255.255.255.248
-ip nat pool NAT_POOL_ADMINS 203.0.113.13 203.0.113.13 netmask 255.255.255.248
-ip nat pool NAT_POOL_SERVERS 203.0.113.14 203.0.113.14 netmask 255.255.255.248
-```
-
-### NAT Overload
-
-```bash
+```cisco
 ip nat inside source list NAT_ALUMNOS pool NAT_POOL_ALUMNOS overload
 ip nat inside source list NAT_PROFESORES pool NAT_POOL_PROFESORES overload
 ip nat inside source list NAT_INVITADOS pool NAT_POOL_INVITADOS overload
@@ -374,154 +248,181 @@ ip nat inside source list NAT_SERVERS pool NAT_POOL_SERVERS overload
 
 ---
 
-## 🔐 Security Policies
+## Security Design
 
-The network applies ACLs to control traffic between VLANs.
+### Traffic Filtering
 
-| Source         | Destination             | Result                  |
-| -------------- | ----------------------- | ----------------------- |
-| ALUMNOS        | SERVERS                 | Blocked                 |
-| INVITADOS      | Internal networks       | Blocked                 |
-| PROFESORES     | SERVERS                 | Allowed                 |
-| ADMINS         | SERVERS                 | Allowed                 |
-| ADMINS         | Network devices via SSH | Allowed                 |
-| Other VLANs    | Network devices via SSH | Blocked                 |
-| Internal VLANs | INTERNET-SERVER         | Allowed through NAT/PAT |
+Extended ACLs control communication between departments.
 
----
+| Source | Destination | Policy |
+|--------|-------------|--------|
+| ALUMNOS | SERVERS | Denied |
+| INVITADOS | Internal networks | Denied |
+| PROFESORES | SERVERS | Permitted |
+| ADMINS | SERVERS | Permitted |
+| ADMINS | Network management | Permitted |
+| Other VLANs | SSH management | Denied |
+| Internal VLANs | External network | Permitted through NAT/PAT |
 
-## 🚫 ACL Configuration
+Example student policy:
 
-### Students ACL
-
-Students are not allowed to access the server VLAN.
-
-```bash
+```cisco
 ip access-list extended ACL_ALUMNOS
  deny ip 192.168.0.0 0.0.1.255 192.168.2.96 0.0.0.7
  permit ip any any
 ```
 
-Applied inbound on VLAN 10:
+Example guest policy:
 
-```bash
-interface vlan 10
- ip access-group ACL_ALUMNOS in
-```
-
----
-
-### Guests ACL
-
-Guests are not allowed to access internal school networks.
-
-```bash
+```cisco
 ip access-list extended ACL_INVITADOS
  deny ip 192.168.2.64 0.0.0.31 192.168.0.0 0.0.3.255
  permit ip any any
 ```
 
-Applied inbound on VLAN 40:
-
-```bash
-interface vlan 40
- ip access-group ACL_INVITADOS in
-```
-
 ---
 
-## 🔑 SSH Management
+### Secure Management
 
-SSH access is restricted to the administration VLAN.
+Remote administration is performed through SSH.
 
-Allowed admin network:
+Only devices inside the administration VLAN are allowed to establish SSH management sessions.
 
 ```text
-192.168.2.112/29
+Administration network: 192.168.2.112/29
 ```
 
-Managed devices:
-
-* `MLS-CORE`
-* `R-INTERNET`
-
-Standard ACL used for SSH management:
-
-```bash
+```cisco
 ip access-list standard SSH_ADMINS_ONLY
  permit 192.168.2.112 0.0.0.7
  deny any
 ```
 
-Applied to VTY lines:
-
-```bash
+```cisco
 line vty 0 15
  login local
  transport input ssh
  access-class SSH_ADMINS_ONLY in
 ```
 
-Example SSH commands from an admin PC:
+---
 
-```bash
-ssh -l admin 192.168.2.105
-ssh -l admin 10.0.0.1
+## High Availability Design
+
+Version 2 introduces redundancy at the core and distribution functions.
+
+### HSRP
+
+HSRP provides a virtual default gateway shared by both multilayer switches.
+
+- `MLS-CORE-1` operates as the preferred active gateway.
+- `MLS-CORE-2` operates as the standby gateway.
+- Clients use the HSRP virtual IP as their default gateway.
+- Gateway functionality moves to the standby switch if the active device fails.
+
+### Rapid PVST
+
+Rapid PVST provides a predictable, loop-free Layer 2 topology and faster reconvergence.
+
+- `MLS-CORE-1` is configured as the preferred root bridge.
+- `MLS-CORE-2` is configured as the secondary root bridge.
+- Redundant paths remain available without creating switching loops.
+
+### Redundant Uplinks
+
+Access switches are connected to both core switches.
+
+This design allows traffic to use an alternative path when a core-facing link or multilayer switch becomes unavailable.
+
+---
+
+## Validation
+
+### Version 1 Tests
+
+| Test | Expected Result | Status |
+|------|-----------------|:------:|
+| Client DHCP assignment | Address received from correct pool | ✅ |
+| Inter-VLAN routing | Allowed networks communicate | ✅ |
+| ALUMNOS to SERVERS | Traffic blocked | ✅ |
+| INVITADOS to internal networks | Traffic blocked | ✅ |
+| PROFESORES to SERVER-WEB | Connectivity successful | ✅ |
+| ADMINS to SERVER-WEB | Connectivity successful | ✅ |
+| Admin SSH access | Successful | ✅ |
+| Non-admin SSH access | Blocked | ✅ |
+| External server access | Successful through NAT/PAT | ✅ |
+| NAT translation per VLAN | Correct public IP used | ✅ |
+
+### Version 2 Tests
+
+The following tests will be completed as part of Version 2:
+
+- HSRP active and standby state verification
+- Active gateway failure
+- Core switch shutdown
+- Access uplink failure
+- Rapid PVST reconvergence
+- Inter-VLAN connectivity after failover
+- DHCP operation after failover
+- Internet access after failover
+- Recovery of the preferred core switch
+
+---
+
+## Useful Verification Commands
+
+### VLAN and trunking
+
+```cisco
+show vlan brief
+show interfaces trunk
 ```
 
----
+### Layer 3 routing
 
-## 🧪 Testing & Validation
+```cisco
+show ip interface brief
+show ip route
+```
 
-The following tests were performed:
+### DHCP Relay
 
-| Test                             | Expected Result            | Status |
-| -------------------------------- | -------------------------- | ------ |
-| Student PC → Student Gateway     | Successful                 | ✅      |
-| Teacher PC → Teacher Gateway     | Successful                 | ✅      |
-| Admin PC → Admin Gateway         | Successful                 | ✅      |
-| Guest PC → Guest Gateway         | Successful                 | ✅      |
-| Teacher PC → SERVER-WEB          | Successful                 | ✅      |
-| Admin PC → SERVER-WEB            | Successful                 | ✅      |
-| Student PC → SERVER-WEB          | Blocked                    | ✅      |
-| Guest PC → SERVER-WEB            | Blocked                    | ✅      |
-| Guest PC → Student Network       | Blocked                    | ✅      |
-| Admin PC → MLS-CORE via SSH      | Successful                 | ✅      |
-| Admin PC → R-INTERNET via SSH    | Successful                 | ✅      |
-| Non-admin VLANs → SSH Management | Blocked                    | ✅      |
-| DHCP address assignment          | Successful                 | ✅      |
-| Internal VLANs → INTERNET-SERVER | Successful through NAT/PAT | ✅      |
-| NAT translation per VLAN         | Successful                 | ✅      |
+```cisco
+show running-config interface vlan 10
+```
 
----
+### ACLs
 
-## 🔍 NAT Verification
+```cisco
+show access-lists
+show ip interface
+```
 
-NAT translations can be verified on `R-INTERNET` using:
+### NAT/PAT
 
-```bash
+```cisco
 show ip nat translations
-```
-
-Expected behavior:
-
-| Internal Source   | Expected Public IP |
-| ----------------- | ------------------ |
-| Student VLAN host | 203.0.113.10       |
-| Teacher VLAN host | 203.0.113.11       |
-| Guest VLAN host   | 203.0.113.12       |
-| Admin VLAN host   | 203.0.113.13       |
-| Server VLAN host  | 203.0.113.14       |
-
-Additional verification command:
-
-```bash
 show ip nat statistics
 ```
 
+### SSH
+
+```cisco
+show ip ssh
+show users
+```
+
+### High Availability
+
+```cisco
+show standby brief
+show spanning-tree
+show spanning-tree root
+```
+
 ---
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```text
 enterprise-school-network/
@@ -529,12 +430,20 @@ enterprise-school-network/
 ├── README.md
 │
 ├── topology/
-│   ├── topology.png
-│   └── enterprise-school-network.pkt
+│   ├── v1/
+│   │   ├── README.md
+│   │   ├── topology.png
+│   │   └── enterprise-school-network-v1.pkt
+│   │
+│   └── v2/
+│       ├── README.md
+│       ├── topology.png
+│       └── enterprise-school-network-v2.pkt
 │
 ├── configs/
 │   ├── README.md
-│   ├── MLS-CORE.txt
+│   ├── MLS-CORE-1.txt
+│   ├── MLS-CORE-2.txt
 │   ├── R-INTERNET.txt
 │   ├── R-ISP.txt
 │   ├── SW-ALUMNOS.txt
@@ -558,86 +467,128 @@ enterprise-school-network/
     ├── dhcp-tests.md
     ├── acl-tests.md
     ├── ssh-tests.md
-    └── nat-tests.md
+    ├── nat-tests.md
+    └── high-availability-tests.md
 ```
 
 ---
 
-## 📚 Documentation
+## Documentation
 
-### Design Documentation
+### Project Versions
 
-* [Addressing Plan](docs/addressing-plan.md)
-* [VLSM Calculation](docs/vlsm-calculation.md)
-* [VLAN Design](docs/vlan-design.md)
-* [Network Services](docs/network-services.md)
+- [Version 1 — Functional Network](topology/v1/README.md)
+- [Version 2 — High Availability](topology/v2/README.md)
 
-### Security Documentation
+### Network Design
 
-* [ACL Security Policy](security/acl-policy.md)
-* [SSH Management](security/ssh-management.md)
+- [Addressing Plan](docs/addressing-plan.md)
+- [VLSM Calculation](docs/vlsm-calculation.md)
+- [VLAN Design](docs/vlan-design.md)
+- [Network Services](docs/network-services.md)
 
-### Testing Documentation
+### Security
 
-* [Connectivity Tests](tests/connectivity-tests.md)
-* [DHCP Tests](tests/dhcp-tests.md)
-* [ACL Tests](tests/acl-tests.md)
-* [SSH Tests](tests/ssh-tests.md)
-* [NAT Tests](tests/nat-tests.md)
+- [ACL Security Policy](security/acl-policy.md)
+- [SSH Management](security/ssh-management.md)
+
+### Validation
+
+- [Connectivity Tests](tests/connectivity-tests.md)
+- [DHCP Tests](tests/dhcp-tests.md)
+- [ACL Tests](tests/acl-tests.md)
+- [SSH Tests](tests/ssh-tests.md)
+- [NAT Tests](tests/nat-tests.md)
+- [High Availability Tests](tests/high-availability-tests.md)
 
 ### Device Configurations
 
-* [Configuration Folder](configs/README.md)
-* [MLS-CORE Configuration](configs/MLS-CORE.txt)
-* [R-INTERNET Configuration](configs/R-INTERNET.txt)
-* [R-ISP Configuration](configs/R-ISP.txt)
-* [SW-ALUMNOS Configuration](configs/SW-ALUMNOS.txt)
-* [SW-PROFESORES Configuration](configs/SW-PROFESORES.txt)
-* [SW-INVITADOS Configuration](configs/SW-INVITADOS.txt)
-* [SW-SERVERS Configuration](configs/SW-SERVERS.txt)
-* [SW-ADMINS Configuration](configs/SW-ADMINS.txt)
+- [Configuration Directory](configs/README.md)
+- [MLS-CORE-1](configs/MLS-CORE-1.txt)
+- [MLS-CORE-2](configs/MLS-CORE-2.txt)
+- [R-INTERNET](configs/R-INTERNET.txt)
+- [R-ISP](configs/R-ISP.txt)
+- [SW-ALUMNOS](configs/SW-ALUMNOS.txt)
+- [SW-PROFESORES](configs/SW-PROFESORES.txt)
+- [SW-INVITADOS](configs/SW-INVITADOS.txt)
+- [SW-SERVERS](configs/SW-SERVERS.txt)
+- [SW-ADMINS](configs/SW-ADMINS.txt)
 
 ---
 
-## 🛠️ Technologies Used
+## Technologies and Concepts
 
-* Cisco Packet Tracer
-* Cisco IOS
-* VLANs
-* Trunking
-* VLSM
-* Inter-VLAN Routing
-* DHCP
-* DHCP Relay
-* ACLs
-* SSH
-* NAT/PAT
-* Static Routing
-* ISP Simulation
-* Layer 2 Switching
-* Layer 3 Switching
-
----
-
-## 🚀 Future Improvements
-
-* Add DNS records for internal services
-* Add a web service for the school intranet
-* Add STP documentation
-* Add EtherChannel between core and access switches
-* Add firewall simulation
-* Add monitoring using SNMP or Syslog
-* Add redundancy between core and edge layers
+- Cisco Packet Tracer
+- Cisco IOS
+- Enterprise Network Design
+- Layer 2 Switching
+- Layer 3 Switching
+- VLANs and 802.1Q Trunking
+- VLSM
+- Switch Virtual Interfaces
+- Inter-VLAN Routing
+- DHCP and DHCP Relay
+- Standard and Extended ACLs
+- SSH Management
+- Static Routing
+- NAT/PAT
+- ISP Simulation
+- HSRP
+- Rapid PVST
+- High Availability
+- Failure Testing
 
 ---
 
-## 👨‍💻 Author
+## Skills Demonstrated
+
+This project demonstrates practical knowledge in:
+
+- Designing segmented enterprise networks
+- Planning IPv4 addressing with VLSM
+- Configuring Cisco routers and switches
+- Implementing centralized network services
+- Applying traffic filtering policies
+- Securing remote device administration
+- Configuring NAT/PAT for external connectivity
+- Designing redundant network infrastructure
+- Testing and troubleshooting network failures
+- Documenting technical projects using Git and Markdown
+
+---
+
+## Future Improvements
+
+Potential future versions may include:
+
+- EtherChannel
+- OSPF dynamic routing
+- Dual edge routers
+- Dual ISP connectivity
+- IPv6 addressing and routing
+- Internal DNS services
+- Syslog centralization
+- SNMP monitoring
+- NTP synchronization
+- Port Security
+- DHCP Snooping
+- Dynamic ARP Inspection
+- Network monitoring dashboard
+
+---
+
+## Author
 
 **Samuel Saiz Retama**
-ASIR Student | Networking & Systems
+
+ASIR Student | Networking & Systems Administration
+
+This project was developed as a practical learning environment and portfolio project to demonstrate enterprise networking, security, High Availability and technical documentation skills.
 
 ---
 
-## 📜 License
+## License
 
-This project is intended for educational purposes and portfolio demonstration.
+This repository is intended for educational purposes and portfolio demonstration.
+
+The configurations and topology may be used as a learning reference in controlled laboratory environments.
