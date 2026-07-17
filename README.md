@@ -22,8 +22,8 @@ The network is being developed incrementally:
 
 | Version | Description | Status |
 |:-------:|-------------|:------:|
-| [Version 1](topology/v1/) | Functional enterprise network with VLANs, VLSM, DHCP, ACLs, SSH and NAT/PAT | ✅ Completed |
-| [Version 2](topology/v2/) | Redundant core architecture with HSRP, Rapid PVST and dual uplinks | 🚧 In development |
+| [V1](topology/v1/) | Functional enterprise network with VLANs, VLSM, DHCP, ACLs, SSH and NAT/PAT | ✅ Completed |
+| [V2](topology/v2/) | Redundant core architecture with HSRP, Rapid PVST and dual uplinks | 🚧 In development |
 
 ---
 
