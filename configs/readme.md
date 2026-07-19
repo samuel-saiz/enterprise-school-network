@@ -1,152 +1,208 @@
-# 🏫 Enterprise School Network
+# ⚙️ Device Configurations
 
-![Cisco Packet Tracer](https://img.shields.io/badge/Cisco-Packet%20Tracer-1BA0D7?style=flat-square&logo=cisco&logoColor=white)
-![Networking](https://img.shields.io/badge/Focus-Enterprise%20Networking-blue?style=flat-square)
-![Status](https://img.shields.io/badge/Status-Version%202%20Completed-brightgreen?style=flat-square)
-![License](https://img.shields.io/badge/License-Educational-lightgrey?style=flat-square)
+This directory contains the documented Cisco IOS configurations used in each version of the **Enterprise School Network** project.
 
----
-
-## Project Overview
-
-**Enterprise School Network** is a Cisco Packet Tracer project that simulates the network infrastructure of an educational institution following enterprise network design principles.
-
-The project applies technologies commonly found in production environments, including network segmentation, centralized services, secure remote administration, simulated Internet access and High Availability.
-
-The infrastructure has been developed in two stages:
-
-- **Version 1** implements a complete enterprise campus network.
-- **Version 2** introduces High Availability, redundancy and automatic failover.
+The configuration files are organized by project version so that the original architecture and the High Availability implementation can be reviewed independently.
 
 ---
 
-# Project Versions
-
-| Version | Description | Status |
-|:-------:|-------------|:------:|
-| [V1](topology/v1/) | Enterprise network with VLANs, VLSM, DHCP, ACLs, SSH, static routing and NAT/PAT | ✅ Completed |
-| [V2](topology/v2/) | High Availability architecture with dual core switches, HSRP, Rapid PVST and redundant uplinks | ✅ Completed |
-
----
-
-# Main Features
-
-## Version 1 — Enterprise Campus Network
-
-- VLAN segmentation
-- VLSM addressing
-- Inter-VLAN Routing
-- Centralized DHCP Server
-- DHCP Relay
-- Static Routing
-- Simulated ISP
-- NAT/PAT
-- SSH Secure Management
-- Extended ACLs
-- Internet Connectivity
-- Network Validation
-
----
-
-## Version 2 — High Availability
-
-Version 2 expands the original architecture by introducing enterprise redundancy mechanisms:
-
-- Dual Multilayer Core Switches
-- HSRP Gateway Redundancy
-- Gateway Load Balancing
-- Rapid PVST
-- Redundant Trunk Links
-- Layer 2 Resiliency
-- Automatic Gateway Failover
-- High Availability Validation
-
----
-
-# Technologies Used
-
-- Cisco Packet Tracer
-- Cisco IOS
-- VLANs
-- VLSM
-- Inter-VLAN Routing
-- DHCP
-- DHCP Relay
-- Static Routing
-- NAT/PAT
-- HSRP
-- Rapid PVST
-- ACLs
-- SSH
-- Layer 2 Switching
-- Layer 3 Switching
-- Enterprise Campus Design
-
----
-
-# Repository Structure
+## Directory Structure
 
 ```text
-enterprise-school-network/
+configs/
 │
-├── topology/
-│   ├── v1/
-│   └── v2/
+├── V1/
+│   ├── MLS-CORE.txt
+│   ├── R-INTERNET.txt
+│   ├── R-ISP.txt
+│   ├── SW-ALUMNOS.txt
+│   ├── SW-PROFESORES.txt
+│   ├── SW-INVITADOS.txt
+│   ├── SW-SERVERS.txt
+│   ├── SW-ADMINS.txt
+│   └── INTERNET-SERVER.txt
 │
-├── configs/
-│   ├── v1/
-│   └── v2/
-│
-├── docs/
-│   ├── v1/
-│   └── v2/
-│
-├── security/
-│   ├── v1/
-│   └── v2/
-│
-├── tests/
-│   ├── v1/
-│   └── v2/
+├── V2/
+│   ├── MLS-CORE-1.txt
+│   ├── MLS-CORE-2.txt
+│   ├── R-INTERNET.txt
+│   ├── R-ISP.txt
+│   ├── SW-ALUMNOS.txt
+│   ├── SW-PROFESORES.txt
+│   ├── SW-INVITADOS.txt
+│   ├── SW-SERVERS.txt
+│   ├── SW-ADMINS.txt
+│   └── INTERNET-SERVER.txt
 │
 └── README.md
 ```
 
 ---
 
-# Skills Demonstrated
+# Version 1 Configurations
 
-This project demonstrates practical knowledge of:
+Version 1 uses a single multilayer core switch to provide the default gateways and inter-VLAN routing for the entire campus network.
 
-- Enterprise Network Design
-- Cisco Switching
-- Cisco Routing
-- High Availability
-- First Hop Redundancy Protocol (HSRP)
-- Layer 2 Redundancy
-- IP Address Planning
-- Network Security
-- Infrastructure Documentation
-- Network Validation
+| Device            | Role                   | Main functions                                              |
+| ----------------- | ---------------------- | ----------------------------------------------------------- |
+| `MLS-CORE`        | Multilayer core switch | VLAN gateways, inter-VLAN routing, DHCP relay, ACLs and SSH |
+| `R-INTERNET`      | Internet edge router   | Static routing, NAT/PAT and external connectivity           |
+| `R-ISP`           | Simulated ISP router   | Connection to the external Internet network                 |
+| `SW-ALUMNOS`      | Access switch          | Connectivity for VLAN 10                                    |
+| `SW-PROFESORES`   | Access switch          | Connectivity for VLAN 20                                    |
+| `SW-ADMINS`       | Access switch          | Connectivity for VLAN 30                                    |
+| `SW-INVITADOS`    | Access switch          | Connectivity for VLAN 40                                    |
+| `SW-SERVERS`      | Access switch          | Connectivity for VLAN 50                                    |
+| `INTERNET-SERVER` | External server        | Internet and NAT/PAT validation                             |
 
----
+Version 1 configuration files are available in:
 
-# Future Improvements
-
-Potential future enhancements include:
-
-- OSPF Dynamic Routing
-- EtherChannel (LACP)
-- Port Security
-- SNMP Monitoring
-- Syslog Server
-- NTP
-- IPv6 Support
-- AAA Authentication
-- Wireless Infrastructure
+```text
+configs/V1/
+```
 
 ---
 
-# License
+# Version 2 Configurations
 
-This repository has been created for educational purposes and as part of my networking portfolio.
+Version 2 introduces a redundant core architecture while retaining the original VLAN design and centralized services.
+
+The main configuration changes affect the two multilayer core switches and the Internet edge router.
+
+| Device            | Status in V2 | Main functions                                                                 |
+| ----------------- | ------------ | ------------------------------------------------------------------------------ |
+| `MLS-CORE-1`      | Updated      | HSRP, Rapid PVST, inter-VLAN routing and preferred gateway for selected VLANs  |
+| `MLS-CORE-2`      | New          | Secondary core, HSRP redundancy, Rapid PVST and alternate routed Internet path |
+| `R-INTERNET`      | Updated      | Dual core connectivity and floating static routes                              |
+| `R-ISP`           | Retained     | Simulated ISP and public NAT block routing                                     |
+| Access switches   | Retained     | VLAN access connectivity and redundant core uplinks                            |
+| `INTERNET-SERVER` | Retained     | External connectivity and NAT/PAT validation                                   |
+
+Version 2 configuration files are available in:
+
+```text
+configs/V2/
+```
+
+---
+
+## Version 2 Core Role Distribution
+
+HSRP and Rapid PVST responsibilities are distributed between both core switches.
+
+| VLAN | Name       | Preferred HSRP active core | Preferred STP root |
+| ---: | ---------- | -------------------------- | ------------------ |
+|   10 | ALUMNOS    | `MLS-CORE-1`               | `MLS-CORE-1`       |
+|   20 | PROFESORES | `MLS-CORE-2`               | `MLS-CORE-2`       |
+|   30 | ADMINS     | `MLS-CORE-1`               | `MLS-CORE-1`       |
+|   40 | INVITADOS  | `MLS-CORE-2`               | `MLS-CORE-2`       |
+|   50 | SERVERS    | `MLS-CORE-1`               | `MLS-CORE-1`       |
+|   99 | MANAGEMENT | `MLS-CORE-2`               | `MLS-CORE-2`       |
+
+This distribution prevents a single core switch from processing all active gateway and Layer 2 forwarding roles.
+
+---
+
+## Version 2 Routed Links
+
+`R-INTERNET` connects independently to both multilayer core switches.
+
+| Connection              | Network          |    R-INTERNET |   Core switch |
+| ----------------------- | ---------------- | ------------: | ------------: |
+| R-INTERNET ↔ MLS-CORE-1 | `10.0.0.0/30`    |    `10.0.0.1` |    `10.0.0.2` |
+| R-INTERNET ↔ MLS-CORE-2 | `10.0.0.4/30`    |    `10.0.0.5` |    `10.0.0.6` |
+| R-INTERNET ↔ R-ISP      | `203.0.113.0/30` | `203.0.113.2` | `203.0.113.1` |
+
+Floating static routes provide an alternative path when one of the core connections becomes unavailable.
+
+---
+
+## Configuration File Format
+
+The files in this directory are structured implementation documents rather than unmodified `show running-config` outputs.
+
+Each file normally includes:
+
+* Device role and model.
+* Basic system configuration.
+* Interface configuration.
+* VLAN and trunk configuration.
+* Routing configuration.
+* HSRP or Rapid PVST configuration where applicable.
+* NAT/PAT and ACL configuration.
+* SSH management controls.
+* Verification commands.
+* Relevant technical notes.
+
+Automatically generated IOS lines and hardware-specific information are omitted when they do not contribute to understanding the implementation.
+
+---
+
+## Security
+
+Real credentials and encrypted password hashes must not be published in the repository.
+
+Configuration examples use placeholders such as:
+
+```text
+<SECURE_PASSWORD>
+<ENABLE_SECRET>
+```
+
+The following information should also be removed before publishing raw configurations:
+
+* Password hashes.
+* Real usernames when sensitive.
+* Device serial numbers.
+* License identifiers.
+* Unnecessary hardware-generated MAC addresses.
+
+---
+
+## Reused Configurations
+
+The access-layer switches and `INTERNET-SERVER` were not functionally redesigned in Version 2.
+
+Their configuration files can be copied into `configs/V2/` so that the Version 2 directory remains a complete and independent configuration snapshot.
+
+References to the original single `MLS-CORE` should be updated where necessary to describe the redundant links toward:
+
+```text
+MLS-CORE-1
+MLS-CORE-2
+```
+
+The IOS commands should only be changed when the actual Packet Tracer device configuration was modified.
+
+---
+
+## Verification
+
+The documented configurations can be checked using commands such as:
+
+```bash
+show running-config
+show ip interface brief
+show vlan brief
+show interfaces trunk
+show ip route
+show standby brief
+show spanning-tree root
+show access-lists
+show ip nat translations
+show ip nat statistics
+```
+
+Not every command is supported by every device.
+
+---
+
+## Notes
+
+The files in this directory document the implemented Packet Tracer topology and are intended for:
+
+* Technical review.
+* Configuration reference.
+* Portfolio presentation.
+* Troubleshooting.
+* Comparison between Version 1 and Version 2.
