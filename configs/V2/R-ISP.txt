@@ -1,0 +1,219 @@
+# R-ISP Configuration
+
+Device role: Simulated Internet Service Provider Router
+Model: Cisco 2911
+Function: Provides connectivity between the school edge router and the simulated external network containing the Internet server.
+
+R-ISP represents the upstream provider. It connects `R-INTERNET` to the external `8.8.8.0/24` network and routes traffic destined for the internal school infrastructure and the public NAT address block.
+
+---
+
+## Basic Configuration
+
+```bash
+hostname R-ISP
+
+ip cef
+```
+
+---
+
+## Link to R-INTERNET
+
+GigabitEthernet0/0 connects the simulated ISP router to the school Internet edge router.
+
+```bash
+interface GigabitEthernet0/0
+ description LINK TO R-INTERNET
+ ip address 203.0.113.1 255.255.255.252
+ no shutdown
+exit
+```
+
+Network information:
+
+```text
+Network: 203.0.113.0/30
+R-ISP: 203.0.113.1
+R-INTERNET: 203.0.113.2
+```
+
+---
+
+## Link to INTERNET-SERVER
+
+GigabitEthernet0/1 connects R-ISP to the simulated public Internet network.
+
+```bash
+interface GigabitEthernet0/1
+ description LINK TO INTERNET-SERVER
+ ip address 8.8.8.1 255.255.255.0
+ no shutdown
+exit
+```
+
+Network information:
+
+```text
+Network: 8.8.8.0/24
+R-ISP gateway: 8.8.8.1
+INTERNET-SERVER: 8.8.8.8
+```
+
+The external server must use `8.8.8.1` as its default gateway.
+
+---
+
+## Unused Interface
+
+GigabitEthernet0/2 is not used in the current topology.
+
+```bash
+interface GigabitEthernet0/2
+ no ip address
+ shutdown
+exit
+```
+
+---
+
+## Internal Network Route
+
+The complete school addressing block is summarized as `192.168.0.0/22`.
+
+Traffic destined for any internal VLAN is forwarded to R-INTERNET.
+
+```bash
+ip route 192.168.0.0 255.255.252.0 203.0.113.2
+```
+
+This summarized route includes the following Version 2 networks:
+
+| VLAN                 | Network          |
+| -------------------- | ---------------- |
+| VLAN 10 — ALUMNOS    | 192.168.0.0/23   |
+| VLAN 20 — PROFESORES | 192.168.2.0/26   |
+| VLAN 40 — INVITADOS  | 192.168.2.64/27  |
+| VLAN 50 — SERVERS    | 192.168.2.96/29  |
+| VLAN 30 — ADMINS     | 192.168.2.112/29 |
+| VLAN 99 — MANAGEMENT | 192.168.2.128/28 |
+
+---
+
+## Core Transit Network Route
+
+Traffic destined for the first routed link between R-INTERNET and MLS-CORE-1 is forwarded through R-INTERNET.
+
+```bash
+ip route 10.0.0.0 255.255.255.252 203.0.113.2
+```
+
+Network information:
+
+```text
+Network: 10.0.0.0/30
+R-INTERNET: 10.0.0.1
+MLS-CORE-1: 10.0.0.2
+```
+
+The second transit network, `10.0.0.4/30`, is not currently included in the R-ISP routing table. This does not affect normal NAT communication because translated traffic uses the public NAT addresses.
+
+---
+
+## NAT Public Address Route
+
+R-INTERNET uses public addresses from the `203.0.113.8/29` block to translate traffic from the internal VLANs.
+
+R-ISP forwards this public address block to R-INTERNET.
+
+```bash
+ip route 203.0.113.8 255.255.255.248 203.0.113.2
+```
+
+The translated addresses are:
+
+| Internal network | Public NAT address |
+| ---------------- | -----------------: |
+| ALUMNOS          |       203.0.113.10 |
+| PROFESORES       |       203.0.113.11 |
+| INVITADOS        |       203.0.113.12 |
+| ADMINS           |       203.0.113.13 |
+| SERVERS          |       203.0.113.14 |
+
+The route is necessary so return traffic from the simulated Internet reaches R-INTERNET.
+
+---
+
+## Routing Table Summary
+
+| Destination | Mask            |    Next hop | Purpose                    |
+| ----------- | --------------- | ----------: | -------------------------- |
+| 192.168.0.0 | 255.255.252.0   | 203.0.113.2 | Internal school networks   |
+| 10.0.0.0    | 255.255.255.252 | 203.0.113.2 | MLS-CORE-1 transit network |
+| 203.0.113.8 | 255.255.255.248 | 203.0.113.2 | Public NAT address block   |
+
+---
+
+## Verification Commands
+
+```bash
+show ip interface brief
+show ip route
+show ip route static
+
+ping 203.0.113.2
+ping 8.8.8.8
+
+traceroute 192.168.0.1
+traceroute 203.0.113.10
+```
+
+---
+
+## Expected Connectivity
+
+R-ISP should be able to:
+
+* Reach R-INTERNET at `203.0.113.2`.
+* Reach INTERNET-SERVER at `8.8.8.8`.
+* Forward traffic toward the summarized internal network.
+* Forward return traffic toward the public NAT addresses.
+* Route communication between the school infrastructure and the simulated Internet.
+
+---
+
+## Configuration Review
+
+### Second core transit route
+
+The current configuration only includes a route for:
+
+```text
+10.0.0.0/30
+```
+
+The routed link between R-INTERNET and MLS-CORE-2 uses:
+
+```text
+10.0.0.4/30
+```
+
+A route to this second transit network is only required if R-ISP or the external server must directly reach the physical address of MLS-CORE-2.
+
+It can be added with:
+
+```bash
+ip route 10.0.0.4 255.255.255.252 203.0.113.2
+```
+
+This route is not required for normal end-user Internet access through NAT.
+
+---
+
+## Security Notice
+
+R-ISP does not currently provide remote SSH administration.
+
+The VTY lines use the generic `login` command without a configured local user or VTY password. Therefore, remote access should not be documented as enabled.
+
+For a production-style configuration, remote management should either be disabled or secured using SSH and an access control list.
