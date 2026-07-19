@@ -1,0 +1,416 @@
+# R-INTERNET Configuration
+
+Device role: Internet Edge Router
+Model: Cisco 2911
+Function: Connection between the internal school network and the simulated ISP, redundant routing toward both multilayer core switches, NAT/PAT and secured SSH management.
+
+R-INTERNET connects independently to `MLS-CORE-1` and `MLS-CORE-2`. Static routes with different administrative distances provide route failover if one core link becomes unavailable.
+
+---
+
+## Basic Configuration
+
+```bash
+hostname R-INTERNET
+
+ip cef
+
+ip domain-name school.local
+ip ssh version 2
+
+username admin privilege 15 secret <SECURE_PASSWORD>
+enable secret <ENABLE_SECRET>
+```
+
+Real password hashes are replaced with placeholders before publishing the configuration.
+
+---
+
+## Link to MLS-CORE-1
+
+GigabitEthernet0/0 connects R-INTERNET to MLS-CORE-1.
+
+The interface is classified as a NAT inside interface.
+
+```bash
+interface GigabitEthernet0/0
+ description LINK TO MLS-CORE-1
+ ip address 10.0.0.1 255.255.255.252
+ ip nat inside
+ no shutdown
+exit
+```
+
+```text
+Network: 10.0.0.0/30
+R-INTERNET: 10.0.0.1
+MLS-CORE-1: 10.0.0.2
+```
+
+---
+
+## Link to R-ISP
+
+GigabitEthernet0/1 connects the edge router to the simulated ISP.
+
+This interface is classified as the NAT outside interface.
+
+```bash
+interface GigabitEthernet0/1
+ description LINK TO R-ISP
+ ip address 203.0.113.2 255.255.255.252
+ ip nat outside
+ no shutdown
+exit
+```
+
+```text
+Network: 203.0.113.0/30
+R-ISP: 203.0.113.1
+R-INTERNET: 203.0.113.2
+```
+
+---
+
+## Link to MLS-CORE-2
+
+GigabitEthernet0/2 provides a second independent connection between R-INTERNET and the internal core layer.
+
+The interface is classified as a NAT inside interface.
+
+```bash
+interface GigabitEthernet0/2
+ description LINK TO MLS-CORE-2
+ ip address 10.0.0.5 255.255.255.252
+ ip nat inside
+ no shutdown
+exit
+```
+
+```text
+Network: 10.0.0.4/30
+R-INTERNET: 10.0.0.5
+MLS-CORE-2: 10.0.0.6
+```
+
+---
+
+## Default Route
+
+All unknown destinations are forwarded to R-ISP.
+
+```bash
+ip route 0.0.0.0 0.0.0.0 203.0.113.1
+```
+
+---
+
+## Redundant Static Routing
+
+R-INTERNET uses two routes toward each internal network:
+
+* The primary route points to the core that is normally active for that VLAN.
+* A floating static route with administrative distance `10` points to the alternate core.
+* If the preferred route becomes unavailable, the backup route is installed.
+
+---
+
+### VLAN 10 — ALUMNOS
+
+MLS-CORE-1 is the preferred route for the student network.
+
+```bash
+ip route 192.168.0.0 255.255.254.0 10.0.0.2
+ip route 192.168.0.0 255.255.254.0 10.0.0.6 10
+```
+
+```text
+Network: 192.168.0.0/23
+Primary next hop: MLS-CORE-1 — 10.0.0.2
+Backup next hop: MLS-CORE-2 — 10.0.0.6
+```
+
+---
+
+### VLAN 20 — PROFESORES
+
+MLS-CORE-2 is the preferred route for the teacher network.
+
+```bash
+ip route 192.168.2.0 255.255.255.192 10.0.0.6
+ip route 192.168.2.0 255.255.255.192 10.0.0.2 10
+```
+
+```text
+Network: 192.168.2.0/26
+Primary next hop: MLS-CORE-2 — 10.0.0.6
+Backup next hop: MLS-CORE-1 — 10.0.0.2
+```
+
+---
+
+### VLAN 40 — INVITADOS
+
+MLS-CORE-2 is the preferred route for the guest network.
+
+```bash
+ip route 192.168.2.64 255.255.255.224 10.0.0.6
+ip route 192.168.2.64 255.255.255.224 10.0.0.2 10
+```
+
+```text
+Network: 192.168.2.64/27
+Primary next hop: MLS-CORE-2 — 10.0.0.6
+Backup next hop: MLS-CORE-1 — 10.0.0.2
+```
+
+---
+
+### VLAN 50 — SERVERS
+
+MLS-CORE-1 is the preferred route for the server network.
+
+```bash
+ip route 192.168.2.96 255.255.255.248 10.0.0.2
+ip route 192.168.2.96 255.255.255.248 10.0.0.6 10
+```
+
+```text
+Network: 192.168.2.96/29
+Primary next hop: MLS-CORE-1 — 10.0.0.2
+Backup next hop: MLS-CORE-2 — 10.0.0.6
+```
+
+---
+
+### VLAN 30 — ADMINS
+
+MLS-CORE-1 is the preferred route for the administrator network.
+
+```bash
+ip route 192.168.2.112 255.255.255.248 10.0.0.2
+ip route 192.168.2.112 255.255.255.248 10.0.0.6 10
+```
+
+```text
+Network: 192.168.2.112/29
+Primary next hop: MLS-CORE-1 — 10.0.0.2
+Backup next hop: MLS-CORE-2 — 10.0.0.6
+```
+
+---
+
+## NAT Address Pools
+
+A separate simulated public address is assigned to each internal user group.
+
+```bash
+ip nat pool NAT-POOL-ALUMNOS 203.0.113.10 203.0.113.10 netmask 255.255.255.248
+
+ip nat pool NAT-POOL-PROFESORES 203.0.113.11 203.0.113.11 netmask 255.255.255.248
+
+ip nat pool NAT-POOL-INVITADOS 203.0.113.12 203.0.113.12 netmask 255.255.255.248
+
+ip nat pool NAT-POOL-ADMINS 203.0.113.13 203.0.113.13 netmask 255.255.255.248
+
+ip nat pool NAT-POOL-SERVERS 203.0.113.14 203.0.113.14 netmask 255.255.255.248
+```
+
+| Internal network | NAT pool            | Translated address |
+| ---------------- | ------------------- | -----------------: |
+| ALUMNOS          | NAT-POOL-ALUMNOS    |       203.0.113.10 |
+| PROFESORES       | NAT-POOL-PROFESORES |       203.0.113.11 |
+| INVITADOS        | NAT-POOL-INVITADOS  |       203.0.113.12 |
+| ADMINS           | NAT-POOL-ADMINS     |       203.0.113.13 |
+| SERVERS          | NAT-POOL-SERVERS    |       203.0.113.14 |
+
+---
+
+## NAT Access Control Lists
+
+Each standard ACL identifies the internal source network associated with its NAT pool.
+
+### ALUMNOS
+
+```bash
+ip access-list standard NAT-ALUMNOS
+ permit 192.168.0.0 0.0.1.255
+exit
+```
+
+### PROFESORES
+
+```bash
+ip access-list standard NAT-PROFESORES
+ permit 192.168.2.0 0.0.0.63
+exit
+```
+
+### INVITADOS
+
+```bash
+ip access-list standard NAT-INVITADOS
+ permit 192.168.2.64 0.0.0.31
+exit
+```
+
+### ADMINS
+
+```bash
+ip access-list standard NAT-ADMINS
+ permit 192.168.2.112 0.0.0.7
+exit
+```
+
+### SERVERS
+
+```bash
+ip access-list standard NAT-SERVERS
+ permit 192.168.2.96 0.0.0.7
+exit
+```
+
+---
+
+## NAT Overload Configuration
+
+PAT overload allows multiple devices from the same internal network to share its assigned translated address.
+
+```bash
+ip nat inside source list NAT-ALUMNOS pool NAT-POOL-ALUMNOS overload
+
+ip nat inside source list NAT-PROFESORES pool NAT-POOL-PROFESORES overload
+
+ip nat inside source list NAT-INVITADOS pool NAT-POOL-INVITADOS overload
+
+ip nat inside source list NAT-ADMINS pool NAT-POOL-ADMINS overload
+
+ip nat inside source list NAT-SERVERS pool NAT-POOL-SERVERS overload
+```
+
+---
+
+## SSH Management ACL
+
+Only devices located in the administrator VLAN are allowed to establish SSH sessions with R-INTERNET.
+
+```bash
+ip access-list standard SSH_ADMINS_ONLY
+ permit 192.168.2.112 0.0.0.7
+ deny any
+exit
+```
+
+---
+
+## VTY Configuration
+
+```bash
+line vty 0 4
+ access-class SSH_ADMINS_ONLY in
+ login local
+ transport input ssh
+exit
+```
+
+Telnet is not permitted.
+
+---
+
+## Verification Commands
+
+```bash
+show ip interface brief
+show ip route
+show ip route static
+
+show access-lists
+
+show ip nat statistics
+show ip nat translations
+
+show running-config | include ip route
+show running-config | include ip nat
+
+show users
+show ssh
+```
+
+---
+
+## Expected Routing Preference
+
+| VLAN                 | Internal network | Primary core | Primary next hop | Backup next hop |
+| -------------------- | ---------------- | ------------ | ---------------: | --------------: |
+| VLAN 10 — ALUMNOS    | 192.168.0.0/23   | MLS-CORE-1   |         10.0.0.2 |        10.0.0.6 |
+| VLAN 20 — PROFESORES | 192.168.2.0/26   | MLS-CORE-2   |         10.0.0.6 |        10.0.0.2 |
+| VLAN 30 — ADMINS     | 192.168.2.112/29 | MLS-CORE-1   |         10.0.0.2 |        10.0.0.6 |
+| VLAN 40 — INVITADOS  | 192.168.2.64/27  | MLS-CORE-2   |         10.0.0.6 |        10.0.0.2 |
+| VLAN 50 — SERVERS    | 192.168.2.96/29  | MLS-CORE-1   |         10.0.0.2 |        10.0.0.6 |
+
+---
+
+## Configuration Review
+
+### Obsolete management route
+
+The running configuration contains:
+
+```bash
+ip route 192.168.2.104 255.255.255.248 10.0.0.6
+ip route 192.168.2.104 255.255.255.248 10.0.0.2 10
+```
+
+This was the management network used in Version 1:
+
+```text
+192.168.2.104/29
+```
+
+Version 2 uses the following VLAN 99 network:
+
+```text
+192.168.2.128/28
+```
+
+Therefore, the `192.168.2.104/29` static routes are obsolete and should not appear in the final sanitized Version 2 configuration.
+
+They can be removed with:
+
+```bash
+no ip route 192.168.2.104 255.255.255.248 10.0.0.6
+no ip route 192.168.2.104 255.255.255.248 10.0.0.2 10
+```
+
+A route toward `192.168.2.128/28` is only necessary on R-INTERNET if VLAN 99 devices need to communicate through the edge router or access the simulated Internet.
+
+---
+
+### No NAT policy for VLAN 99
+
+The current configuration does not define a NAT ACL or NAT pool for the management VLAN.
+
+This is valid if management devices are not expected to access the simulated Internet.
+
+It must not be documented as Internet-enabled unless a NAT policy for `192.168.2.128/28` is added and tested.
+
+---
+
+### Failover limitation
+
+The floating static routes provide an alternate next hop, but their actual withdrawal depends on whether the directly connected next-hop interface becomes unavailable.
+
+They provide redundancy when a core link or core device goes down. They do not perform advanced end-to-end path tracking.
+
+---
+
+## Security Notice
+
+Real encrypted password hashes must not be uploaded to the public repository.
+
+Use these placeholders:
+
+```text
+<SECURE_PASSWORD>
+<ENABLE_SECRET>
+```
