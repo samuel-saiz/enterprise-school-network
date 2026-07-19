@@ -1,0 +1,144 @@
+# SW-INVITADOS Configuration
+
+Device role: Access Switch
+Model: Cisco 2960
+Function: Access switch for the guests VLAN.
+
+---
+
+## Basic Configuration
+
+```bash
+hostname SW-INVITADOS
+```
+
+---
+
+## VLAN Configuration
+
+```bash
+vlan 40
+ name INVITADOS
+exit
+
+vlan 99
+ name MGMT
+exit
+```
+
+---
+
+## Trunk Link to MLS-CORE
+
+The `Fa0/1` interface connects this access switch to `MLS-CORE`.
+
+```bash
+interface fastEthernet 0/1
+ description Trunk to MLS-CORE
+ switchport mode trunk
+ switchport trunk allowed vlan 40,99
+ no shutdown
+exit
+```
+
+---
+
+## Access Ports for Guest Devices
+
+Guest PCs are connected to access ports in VLAN 40.
+
+```bash
+interface range fastEthernet 0/2 - 24
+ description Guest access ports
+ switchport mode access
+ switchport access vlan 40
+ spanning-tree portfast
+ no shutdown
+exit
+```
+
+---
+
+## Management Interface
+
+This switch is managed through VLAN 99.
+
+```bash
+interface vlan 99
+ description Management interface
+ ip address 192.168.2.108 255.255.255.248
+ no shutdown
+exit
+```
+
+---
+
+## Default Gateway
+
+Since this is a Layer 2 switch, it uses a default gateway for remote management.
+
+```bash
+ip default-gateway 192.168.2.105
+```
+
+---
+
+## Expected VLAN Assignment
+
+| Interface        | Mode   | VLAN   |
+| ---------------- | ------ | ------ |
+| `Fa0/1`          | Trunk  | 40, 99 |
+| `Fa0/2 - Fa0/24` | Access | 40     |
+
+---
+
+## Verification Commands
+
+```bash
+show vlan brief
+show interfaces trunk
+show ip interface brief
+show running-config
+```
+
+---
+
+## Expected Tests
+
+From a guest PC connected to this switch:
+
+```bash
+ping 192.168.2.65
+```
+
+Expected result:
+
+```text
+Reply from 192.168.2.65
+```
+
+Guest devices should not be able to reach internal networks due to ACL restrictions.
+
+Test guest access to the server:
+
+```bash
+ping 192.168.2.98
+```
+
+Expected result:
+
+```text
+Request timed out / Lost packets
+```
+
+Test guest access to the students network:
+
+```bash
+ping 192.168.0.20
+```
+
+Expected result:
+
+```text
+Request timed out / Lost packets
+```
