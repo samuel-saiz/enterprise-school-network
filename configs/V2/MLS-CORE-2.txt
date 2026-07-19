@@ -1,0 +1,503 @@
+# MLS-CORE-2 Configuration
+
+Device role: Secondary Multilayer Core Switch
+Model: Cisco Catalyst 3560
+Function: Inter-VLAN routing, HSRP gateway redundancy, Rapid PVST, DHCP relay and redundant connectivity to the Internet edge router.
+
+MLS-CORE-2 acts as the preferred gateway and Spanning Tree root for VLANs 20, 40 and 99.
+
+---
+
+## Basic Configuration
+
+```bash
+hostname MLS-CORE-2
+
+ip routing
+
+ip domain-name SCHOOL.LOCAL
+
+username ADMIN privilege 15 secret <SECURE_PASSWORD>
+```
+
+SSH access uses the local user database.
+
+The current running configuration does not contain an `enable secret` command or the explicit command:
+
+```bash
+ip ssh version 2
+```
+
+---
+
+## VLAN Configuration
+
+The VLANs are transported through the trunk links and have Layer 3 SVI interfaces configured on the core switch.
+
+```bash
+vlan 10
+ name ALUMNOS
+exit
+
+vlan 20
+ name PROFESORES
+exit
+
+vlan 30
+ name ADMINS
+exit
+
+vlan 40
+ name INVITADOS
+exit
+
+vlan 50
+ name SERVERS
+exit
+
+vlan 99
+ name MANAGEMENT
+exit
+```
+
+---
+
+## Rapid PVST Configuration
+
+Rapid PVST provides faster Layer 2 convergence and prevents switching loops in the redundant topology.
+
+MLS-CORE-2 is configured as the preferred root bridge for VLANs 20, 40 and 99.
+
+```bash
+spanning-tree mode rapid-pvst
+
+spanning-tree vlan 20,40,99 priority 24576
+spanning-tree vlan 10,30,50 priority 28672
+```
+
+This configuration distributes the Spanning Tree root role between both multilayer core switches.
+
+---
+
+## Access Switch Trunks
+
+Each access switch is connected redundantly to both multilayer core switches.
+
+### FastEthernet0/1 Trunk
+
+FastEthernet0/1 currently allows all production and management VLANs.
+
+```bash
+interface FastEthernet0/1
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 10,20,30,40,50,99
+exit
+```
+
+---
+
+### SW-PROFESORES Trunk
+
+```bash
+interface FastEthernet0/2
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 20,99
+exit
+```
+
+---
+
+### SW-INVITADOS Trunk
+
+```bash
+interface FastEthernet0/3
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 40,99
+exit
+```
+
+---
+
+### SW-SERVERS Trunk
+
+```bash
+interface FastEthernet0/4
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 50,99
+exit
+```
+
+---
+
+### FastEthernet0/5 Trunk
+
+FastEthernet0/5 currently allows VLANs 50 and 99.
+
+```bash
+interface FastEthernet0/5
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 50,99
+exit
+```
+
+This link must be checked against the physical topology because the equivalent interface on MLS-CORE-1 allows VLANs 30 and 99 for the administrator access switch.
+
+---
+
+## Inter-Core Trunk
+
+FastEthernet0/6 connects MLS-CORE-2 with MLS-CORE-1.
+
+All production and management VLANs are allowed through the inter-core trunk.
+
+```bash
+interface FastEthernet0/6
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 10,20,30,40,50,99
+exit
+```
+
+This trunk allows HSRP communication and maintains Layer 2 connectivity between both core switches.
+
+---
+
+## Routed Link to R-INTERNET
+
+GigabitEthernet0/1 operates as a Layer 3 interface between MLS-CORE-2 and R-INTERNET.
+
+```bash
+interface GigabitEthernet0/1
+ description link to R-INTERNET
+ no switchport
+ ip address 10.0.0.6 255.255.255.252
+exit
+```
+
+Network information:
+
+```text
+Network: 10.0.0.4/30
+R-INTERNET: 10.0.0.5
+MLS-CORE-2: 10.0.0.6
+```
+
+---
+
+## HSRP and SVI Configuration
+
+HSRP provides a shared virtual default gateway for each VLAN.
+
+End devices use the virtual HSRP address rather than the physical IP address of an individual core switch.
+
+---
+
+### VLAN 10 — ALUMNOS
+
+MLS-CORE-1 is the preferred active HSRP router for VLAN 10.
+
+```bash
+interface Vlan10
+ ip address 192.168.0.3 255.255.254.0
+ ip helper-address 192.168.2.98
+ standby 10 ip 192.168.0.1
+ standby 10 preempt
+exit
+```
+
+```text
+Network: 192.168.0.0/23
+HSRP virtual gateway: 192.168.0.1
+MLS-CORE-1: 192.168.0.2
+MLS-CORE-2: 192.168.0.3
+Preferred active core: MLS-CORE-1
+```
+
+---
+
+### VLAN 20 — PROFESORES
+
+MLS-CORE-2 is the preferred active HSRP router for VLAN 20.
+
+```bash
+interface Vlan20
+ ip address 192.168.2.3 255.255.255.192
+ ip helper-address 192.168.2.98
+ standby 20 ip 192.168.2.1
+ standby 20 priority 110
+ standby 20 preempt
+exit
+```
+
+```text
+Network: 192.168.2.0/26
+HSRP virtual gateway: 192.168.2.1
+MLS-CORE-1: 192.168.2.2
+MLS-CORE-2: 192.168.2.3
+Preferred active core: MLS-CORE-2
+```
+
+---
+
+### VLAN 30 — ADMINS
+
+MLS-CORE-1 is the preferred active HSRP router for VLAN 30.
+
+```bash
+interface Vlan30
+ ip address 192.168.2.115 255.255.255.248
+ ip helper-address 192.168.2.98
+ standby 30 ip 192.168.2.113
+ standby 30 preempt
+exit
+```
+
+```text
+Network: 192.168.2.112/29
+HSRP virtual gateway: 192.168.2.113
+MLS-CORE-1: 192.168.2.114
+MLS-CORE-2: 192.168.2.115
+Preferred active core: MLS-CORE-1
+```
+
+---
+
+### VLAN 40 — INVITADOS
+
+MLS-CORE-2 is the preferred active HSRP router for VLAN 40.
+
+```bash
+interface Vlan40
+ ip address 192.168.2.67 255.255.255.224
+ ip helper-address 192.168.2.98
+ standby 40 ip 192.168.2.65
+ standby 40 priority 110
+ standby 40 preempt
+exit
+```
+
+```text
+Network: 192.168.2.64/27
+HSRP virtual gateway: 192.168.2.65
+MLS-CORE-1: 192.168.2.66
+MLS-CORE-2: 192.168.2.67
+Preferred active core: MLS-CORE-2
+```
+
+---
+
+### VLAN 50 — SERVERS
+
+MLS-CORE-1 is the preferred active HSRP router for VLAN 50.
+
+```bash
+interface Vlan50
+ ip address 192.168.2.100 255.255.255.248
+ standby 50 ip 192.168.2.97
+ standby 50 preempt
+exit
+```
+
+```text
+Network: 192.168.2.96/29
+HSRP virtual gateway: 192.168.2.97
+DHCP and web server: 192.168.2.98
+MLS-CORE-1: 192.168.2.99
+MLS-CORE-2: 192.168.2.100
+Preferred active core: MLS-CORE-1
+```
+
+VLAN 50 does not require DHCP relay because the DHCP server is directly connected to this VLAN.
+
+---
+
+### VLAN 99 — MANAGEMENT
+
+MLS-CORE-2 is the preferred active HSRP router for VLAN 99.
+
+```bash
+interface Vlan99
+ ip address 192.168.2.131 255.255.255.240
+ standby 99 ip 192.168.2.129
+ standby 99 priority 110
+ standby 99 preempt
+exit
+```
+
+```text
+Network: 192.168.2.128/28
+HSRP virtual gateway: 192.168.2.129
+MLS-CORE-1: 192.168.2.130
+MLS-CORE-2: 192.168.2.131
+Preferred active core: MLS-CORE-2
+```
+
+---
+
+## DHCP Relay
+
+The central DHCP server is located in VLAN 50.
+
+```text
+DHCP server: 192.168.2.98
+```
+
+DHCP relay is configured on the client VLAN interfaces:
+
+```bash
+interface Vlan10
+ ip helper-address 192.168.2.98
+exit
+
+interface Vlan20
+ ip helper-address 192.168.2.98
+exit
+
+interface Vlan30
+ ip helper-address 192.168.2.98
+exit
+
+interface Vlan40
+ ip helper-address 192.168.2.98
+exit
+```
+
+The helper address is configured on both multilayer core switches so DHCP service remains available during a gateway failover.
+
+---
+
+## Default Route
+
+Unknown destinations are forwarded to R-INTERNET through the dedicated MLS-CORE-2 routed link.
+
+```bash
+ip route 0.0.0.0 0.0.0.0 10.0.0.5
+```
+
+---
+
+## VTY and SSH Configuration
+
+The VTY lines use the local user database and only permit SSH as the remote management protocol.
+
+```bash
+line vty 0 4
+ login local
+ transport input ssh
+exit
+
+line vty 5 15
+ login local
+ transport input ssh
+exit
+```
+
+Unlike MLS-CORE-1, the current MLS-CORE-2 configuration does not contain an `access-class` command restricting SSH access to the administrator VLAN.
+
+---
+
+## Verification Commands
+
+```bash
+show ip interface brief
+show vlan brief
+show interfaces trunk
+show ip route
+show standby brief
+show spanning-tree root
+show spanning-tree vlan 10
+show spanning-tree vlan 20
+show spanning-tree vlan 30
+show spanning-tree vlan 40
+show spanning-tree vlan 50
+show spanning-tree vlan 99
+show users
+show ssh
+```
+
+---
+
+## Expected Core Roles
+
+| VLAN                 | Network          | HSRP virtual gateway | Preferred active core | Preferred STP root |
+| -------------------- | ---------------- | -------------------: | --------------------- | ------------------ |
+| VLAN 10 — ALUMNOS    | 192.168.0.0/23   |          192.168.0.1 | MLS-CORE-1            | MLS-CORE-1         |
+| VLAN 20 — PROFESORES | 192.168.2.0/26   |          192.168.2.1 | MLS-CORE-2            | MLS-CORE-2         |
+| VLAN 30 — ADMINS     | 192.168.2.112/29 |        192.168.2.113 | MLS-CORE-1            | MLS-CORE-1         |
+| VLAN 40 — INVITADOS  | 192.168.2.64/27  |         192.168.2.65 | MLS-CORE-2            | MLS-CORE-2         |
+| VLAN 50 — SERVERS    | 192.168.2.96/29  |         192.168.2.97 | MLS-CORE-1            | MLS-CORE-1         |
+| VLAN 99 — MANAGEMENT | 192.168.2.128/28 |        192.168.2.129 | MLS-CORE-2            | MLS-CORE-2         |
+
+---
+
+## Configuration Review
+
+The following differences should be reviewed before publishing the final repository.
+
+### FastEthernet0/5 VLAN mismatch
+
+MLS-CORE-2 currently contains:
+
+```bash
+interface FastEthernet0/5
+ switchport trunk allowed vlan 50,99
+```
+
+MLS-CORE-1 uses FastEthernet0/5 for the administrator switch and allows:
+
+```bash
+switchport trunk allowed vlan 30,99
+```
+
+If FastEthernet0/5 connects to `SW-ADMINS`, the MLS-CORE-2 allowed VLAN list should be checked.
+
+---
+
+### FastEthernet0/1 VLAN difference
+
+MLS-CORE-1 FastEthernet0/1 only allows VLANs 10 and 99.
+
+MLS-CORE-2 FastEthernet0/1 currently allows all VLANs:
+
+```bash
+switchport trunk allowed vlan 10,20,30,40,50,99
+```
+
+This may work, but it is not consistent with the VLAN pruning applied on MLS-CORE-1.
+
+---
+
+### SSH access restriction
+
+MLS-CORE-1 restricts SSH management with the `SSH_ADMINS_ONLY` ACL.
+
+MLS-CORE-2 currently permits SSH connections through its VTY lines without an access-class restriction.
+
+---
+
+### SSH version
+
+The current running configuration does not explicitly include:
+
+```bash
+ip ssh version 2
+```
+
+This should be verified before documenting SSH version 2 as implemented on MLS-CORE-2.
+
+---
+
+## Security Notice
+
+Real usernames, passwords and encrypted password hashes should not be published in the GitHub repository.
+
+The following placeholder is used:
+
+```text
+<SECURE_PASSWORD>
+```
