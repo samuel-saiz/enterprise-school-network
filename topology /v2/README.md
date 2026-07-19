@@ -2,22 +2,26 @@
 
 ## Overview
 
-Version 2 introduces High Availability (HA) into the Enterprise School Network by eliminating the single point of failure present in Version 1.
+Version 2 transforms the original Enterprise School Network into a High Availability (HA) infrastructure.
 
-The network has been redesigned with redundant multilayer switches, gateway redundancy and Layer 2 resiliency mechanisms to improve reliability and ensure service continuity during infrastructure failures.
+The single point of failure present in Version 1 has been eliminated by introducing redundant multilayer switches, gateway redundancy, Layer 2 resiliency mechanisms and redundant uplinks.
+
+The project simulates a real enterprise campus network where the failure of a core switch does not interrupt communication between VLANs or access to network services.
 
 ---
 
 ## What's New
 
-Version 2 includes all features available in Version 1 and introduces the following improvements:
+Version 2 includes every feature implemented in Version 1 and introduces:
 
-- Redundant Core Architecture
-- Dual Multilayer Switches
+- Dual Core Architecture
+- Redundant Multilayer Switches
 - HSRP Gateway Redundancy
 - Rapid PVST
-- Redundant Uplinks
-- Layer 2 Failover
+- Layer 2 Redundancy
+- Redundant Trunk Links
+- Gateway Load Balancing
+- Automatic Failover
 - High Availability Validation
 
 ---
@@ -25,157 +29,105 @@ Version 2 includes all features available in Version 1 and introduces the follow
 ## Network Architecture
 
 ```text
-                    INTERNET
-                       |
-                    ISP Router
-                       |
-                  Edge Router
-                  /         \
-        MLS-Core-1 ===== MLS-Core-2
-            ||               ||
-            ||               ||
-      =============================
-         Access Layer Switches
-            |      |      |
-          VLAN10 VLAN20 VLAN30
+                         INTERNET
+                            |
+                         ISP Router
+                            |
+                       Edge Router
+                      /           \
+             MLS-CORE-1 ===== MLS-CORE-2
+              ||   ||           ||   ||
+              ||   ||           ||   ||
+     ==========================================
+       SW-ALUMNOS  SW-PROFESORES  SW-INVITADOS
+          |              |              |
+      SW-SERVERS     SW-ADMINS
+
 ```
 
-The architecture provides gateway redundancy through HSRP while Rapid PVST maintains a loop-free Layer 2 topology and automatically reconverges after link or device failures.
+Both multilayer switches operate simultaneously.
+
+HSRP provides gateway redundancy while Rapid PVST prevents Layer 2 loops and automatically reconverges after failures.
+
+Each access switch is connected to both core switches, ensuring network availability even if a core device or uplink fails.
+
+---
+
+## High Availability Design
+
+### Gateway Redundancy
+
+HSRP provides a virtual default gateway for every VLAN.
+
+| VLAN | Active Gateway |
+|------|----------------|
+| VLAN 10 - Students | MLS-CORE-1 |
+| VLAN 20 - Teachers | MLS-CORE-2 |
+| VLAN 30 - Administration | MLS-CORE-1 |
+| VLAN 40 - Guests | MLS-CORE-2 |
+| VLAN 50 - Servers | MLS-CORE-1 |
+| VLAN 99 - Management | MLS-CORE-2 |
+
+This configuration distributes traffic between both multilayer switches while maintaining automatic failover.
+
+---
+
+## Layer 2 Redundancy
+
+Rapid PVST has been configured to:
+
+- Prevent switching loops
+- Block redundant paths when necessary
+- Automatically recover after failures
+- Align the STP Root Bridge with the active HSRP gateway
+
+---
+
+## Network Services
+
+Version 2 maintains every service implemented in Version 1:
+
+- Inter-VLAN Routing
+- DHCP Server
+- DHCP Relay
+- NAT/PAT
+- SSH Management
+- Extended ACLs
+- Static Routing
+- Internet Simulation
+- Web Server
+
+All services continue operating during a core switch failure.
 
 ---
 
 ## Objectives
 
-- Eliminate the single point of failure.
-- Provide gateway redundancy using HSRP.
-- Improve network availability.
-- Ensure automatic Layer 2 failover.
-- Prevent switching loops using Rapid PVST.
-- Maintain inter-VLAN communication during failures.
-- Preserve Internet connectivity after a core switch failure.
+The main goals of Version 2 are:
+
+- Eliminate the single point of failure
+- Provide gateway redundancy using HSRP
+- Increase network availability
+- Implement Layer 2 resiliency
+- Simulate enterprise network redundancy
+- Validate automatic failover
+- Document a production-style Cisco campus design
 
 ---
 
 ## Technologies
 
 - Cisco Packet Tracer
+- Cisco IOS
 - VLANs
 - VLSM
 - Inter-VLAN Routing
-- DHCP
-- DHCP Relay
-- ACLs
-- SSH
-- NAT / PAT
-- Static Routing
 - HSRP
 - Rapid PVST
-
----
-
-## High Availability Design
-
-### HSRP
-
-HSRP provides a virtual default gateway for every VLAN.
-
-- MLS-Core-1 operates as the Active gateway.
-- MLS-Core-2 operates as the Standby gateway.
-- If the active multilayer switch becomes unavailable, the standby device automatically assumes the gateway role without requiring changes on client devices.
-
----
-
-### Rapid PVST
-
-Rapid PVST is used to prevent switching loops while providing fast network convergence.
-
-- MLS-Core-1 is configured as the Primary Root Bridge.
-- MLS-Core-2 is configured as the Secondary Root Bridge.
-
-This configuration guarantees a predictable spanning-tree topology and minimizes recovery time after failures.
-
----
-
-## Validation Tests
-
-The following scenarios are validated during testing:
-
-- Core multilayer switch failure.
-- Redundant uplink failure.
-- HSRP gateway failover.
-- Rapid PVST reconvergence.
-- Inter-VLAN routing after failover.
-- DHCP functionality after failover.
-- Internet connectivity after failover.
-
----
-
-## Repository Structure
-
-```text
-topology/
-├── v1/
-│   ├── enterprise-school-network-v1.pkt
-│   └── README.md
-│
-└── v2/
-    ├── enterprise-school-network-v2.pkt
-    └── README.md
-```
-
----
-
-## Version Comparison
-
-| Feature | Version 1 | Version 2 |
-|----------|:---------:|:---------:|
-| VLANs | ✅ | ✅ |
-| DHCP | ✅ | ✅ |
-| DHCP Relay | ✅ | ✅ |
-| NAT / PAT | ✅ | ✅ |
-| ACLs | ✅ | ✅ |
-| SSH | ✅ | ✅ |
-| Static Routing | ✅ | ✅ |
-| Redundant Core | ❌ | ✅ |
-| HSRP | ❌ | ✅ |
-| Rapid PVST | ❌ | ✅ |
-| High Availability | ❌ | ✅ |
-
----
-
-## Lessons Learned
-
-During the implementation of Version 2, the following concepts were reinforced:
-
-- Enterprise network redundancy principles.
-- High Availability design.
-- HSRP operation and gateway failover.
-- Root Bridge election using Rapid PVST.
-- Layer 2 redundancy best practices.
-- Fault-tolerant network design.
-- Documentation and version control of network projects.
-
----
-
-## Future Improvements
-
-Potential future enhancements include:
-
-- OSPF Dynamic Routing
-- EtherChannel
-- Dual ISP Redundancy
-- IPv6 Support
-- Syslog Server
-- SNMP Monitoring
-- NTP Synchronization
-- Network Monitoring Dashboard
-
----
-
-## Author
-
-**Samuel Saiz Retama**
-
-Enterprise School Network is a personal learning project developed to simulate enterprise network infrastructures using Cisco Packet Tracer.
-
-The project focuses on practical networking skills, high availability, documentation and real-world network design principles.
+- DHCP
+- DHCP Relay
+- NAT/PAT
+- ACLs
+- SSH
+- Static Routing
+- High Availability
