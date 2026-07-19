@@ -1,1 +1,461 @@
+# MLS-CORE-1 Configuration
 
+Device role: Primary Multilayer Core Switch
+Model: Cisco Catalyst 3560
+Function: Inter-VLAN routing, HSRP gateway redundancy, Rapid PVST, DHCP relay, access control and SSH management.
+
+MLS-CORE-1 acts as the preferred gateway and Spanning Tree root for VLANs 10, 30 and 50.
+
+---
+
+## Basic Configuration
+
+```bash
+hostname MLS-CORE-1
+
+ip routing
+
+ip domain-name school.local
+
+username admin privilege 15 secret <SECURE_PASSWORD>
+enable secret <ENABLE_SECRET>
+
+ip ssh version 2
+```
+
+---
+
+## VLAN Configuration
+
+```bash
+vlan 10
+ name ALUMNOS
+exit
+
+vlan 20
+ name PROFESORES
+exit
+
+vlan 30
+ name ADMINS
+exit
+
+vlan 40
+ name INVITADOS
+exit
+
+vlan 50
+ name SERVERS
+exit
+
+vlan 99
+ name MANAGEMENT
+exit
+```
+
+---
+
+## Rapid PVST Configuration
+
+Rapid PVST provides faster Layer 2 convergence and prevents switching loops in the redundant topology.
+
+MLS-CORE-1 is configured as the preferred root bridge for VLANs 10, 30 and 50.
+
+```bash
+spanning-tree mode rapid-pvst
+
+spanning-tree vlan 10,30,50 priority 24576
+spanning-tree vlan 20,40,99 priority 28672
+```
+
+---
+
+## Access Switch Trunks
+
+Each access switch is connected to both multilayer core switches.
+
+Only the VLAN required by each access switch and the management VLAN are allowed through its trunk.
+
+### SW-ALUMNOS Trunk
+
+```bash
+interface FastEthernet0/1
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 10,99
+exit
+```
+
+### SW-PROFESORES Trunk
+
+```bash
+interface FastEthernet0/2
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 20,99
+exit
+```
+
+### SW-INVITADOS Trunk
+
+```bash
+interface FastEthernet0/3
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 40,99
+exit
+```
+
+### SW-SERVERS Trunk
+
+```bash
+interface FastEthernet0/4
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 50,99
+exit
+```
+
+### SW-ADMINS Trunk
+
+```bash
+interface FastEthernet0/5
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 30,99
+exit
+```
+
+---
+
+## Inter-Core Trunk
+
+FastEthernet0/6 connects MLS-CORE-1 with MLS-CORE-2.
+
+All production and management VLANs are allowed through this trunk so that HSRP, Rapid PVST and Layer 2 redundancy can operate between both core switches.
+
+```bash
+interface FastEthernet0/6
+ switchport trunk encapsulation dot1q
+ switchport mode trunk
+ switchport trunk allowed vlan 10,20,30,40,50,99
+exit
+```
+
+---
+
+## Routed Link to R-INTERNET
+
+GigabitEthernet0/1 operates as a Layer 3 interface between MLS-CORE-1 and the Internet edge router.
+
+```bash
+interface GigabitEthernet0/1
+ no switchport
+ ip address 10.0.0.2 255.255.255.252
+exit
+```
+
+Network information:
+
+```text
+Network: 10.0.0.0/30
+R-INTERNET: 10.0.0.1
+MLS-CORE-1: 10.0.0.2
+```
+
+---
+
+## HSRP and SVI Configuration
+
+HSRP provides a shared virtual default gateway for each VLAN.
+
+End devices use the virtual IP address instead of the physical address assigned to an individual core switch.
+
+---
+
+### VLAN 10 — ALUMNOS
+
+MLS-CORE-1 is the preferred active HSRP router for VLAN 10.
+
+```bash
+interface Vlan10
+ ip address 192.168.0.2 255.255.254.0
+ ip helper-address 192.168.2.98
+ standby 10 ip 192.168.0.1
+ standby 10 priority 110
+ standby 10 preempt
+exit
+```
+
+```text
+Network: 192.168.0.0/23
+HSRP virtual gateway: 192.168.0.1
+MLS-CORE-1: 192.168.0.2
+```
+
+---
+
+### VLAN 20 — PROFESORES
+
+MLS-CORE-2 is the preferred active HSRP router for VLAN 20.
+
+```bash
+interface Vlan20
+ ip address 192.168.2.2 255.255.255.192
+ ip helper-address 192.168.2.98
+ standby 20 ip 192.168.2.1
+ standby 20 preempt
+exit
+```
+
+```text
+Network: 192.168.2.0/26
+HSRP virtual gateway: 192.168.2.1
+MLS-CORE-1: 192.168.2.2
+```
+
+---
+
+### VLAN 30 — ADMINS
+
+MLS-CORE-1 is the preferred active HSRP router for VLAN 30.
+
+```bash
+interface Vlan30
+ ip address 192.168.2.114 255.255.255.248
+ ip helper-address 192.168.2.98
+ standby 30 ip 192.168.2.113
+ standby 30 priority 110
+ standby 30 preempt
+exit
+```
+
+```text
+Network: 192.168.2.112/29
+HSRP virtual gateway: 192.168.2.113
+MLS-CORE-1: 192.168.2.114
+```
+
+---
+
+### VLAN 40 — INVITADOS
+
+MLS-CORE-2 is the preferred active HSRP router for VLAN 40.
+
+```bash
+interface Vlan40
+ ip address 192.168.2.66 255.255.255.224
+ ip helper-address 192.168.2.98
+ standby 40 ip 192.168.2.65
+ standby 40 preempt
+exit
+```
+
+```text
+Network: 192.168.2.64/27
+HSRP virtual gateway: 192.168.2.65
+MLS-CORE-1: 192.168.2.66
+```
+
+---
+
+### VLAN 50 — SERVERS
+
+MLS-CORE-1 is the preferred active HSRP router for VLAN 50.
+
+```bash
+interface Vlan50
+ ip address 192.168.2.99 255.255.255.248
+ standby 50 ip 192.168.2.97
+ standby 50 priority 110
+ standby 50 preempt
+exit
+```
+
+```text
+Network: 192.168.2.96/29
+HSRP virtual gateway: 192.168.2.97
+MLS-CORE-1: 192.168.2.99
+DHCP and web server: 192.168.2.98
+```
+
+---
+
+### VLAN 99 — MANAGEMENT
+
+MLS-CORE-2 is the preferred active HSRP router for VLAN 99.
+
+```bash
+interface Vlan99
+ ip address 192.168.2.130 255.255.255.240
+ standby 99 ip 192.168.2.129
+ standby 99 preempt
+exit
+```
+
+```text
+Network: 192.168.2.128/28
+HSRP virtual gateway: 192.168.2.129
+MLS-CORE-1: 192.168.2.130
+```
+
+---
+
+## DHCP Relay
+
+The DHCP server is located in VLAN 50 with the following address:
+
+```text
+DHCP server: 192.168.2.98
+```
+
+DHCP relay is configured on the client VLAN interfaces:
+
+```bash
+interface Vlan10
+ ip helper-address 192.168.2.98
+exit
+
+interface Vlan20
+ ip helper-address 192.168.2.98
+exit
+
+interface Vlan30
+ ip helper-address 192.168.2.98
+exit
+
+interface Vlan40
+ ip helper-address 192.168.2.98
+exit
+```
+
+VLAN 50 does not require DHCP relay because the DHCP server is directly connected to that VLAN.
+
+---
+
+## Default Route
+
+Unknown destinations are forwarded to R-INTERNET.
+
+```bash
+ip route 0.0.0.0 0.0.0.0 10.0.0.1
+```
+
+---
+
+## Extended Access Control Lists
+
+### Student Network ACL
+
+This ACL allows DHCP communication and prevents devices in VLAN 10 from accessing the server network.
+
+```bash
+ip access-list extended ACL-ALUMNOS
+ permit udp any eq bootpc host 192.168.2.98 eq bootps
+ permit udp host 192.168.2.98 eq bootps any eq bootpc
+ deny ip 192.168.0.0 0.0.1.255 192.168.2.96 0.0.0.7
+ permit ip any any
+exit
+```
+
+---
+
+### Guest Network ACL
+
+This ACL allows DHCP communication and prevents devices in VLAN 40 from accessing the internal addressing block.
+
+```bash
+ip access-list extended ACL-INVITADOS
+ permit udp any eq bootpc host 192.168.2.98 eq bootps
+ permit udp host 192.168.2.98 eq bootps any eq bootpc
+ permit ip 192.168.2.64 0.0.0.31 host 192.168.2.65
+ deny ip 192.168.2.64 0.0.0.31 192.168.0.0 0.0.3.255
+ permit ip any any
+exit
+```
+
+---
+
+## SSH Management ACL
+
+Only devices located in the administrator VLAN are permitted to establish SSH sessions with the core switch.
+
+```bash
+ip access-list standard SSH_ADMINS_ONLY
+ permit 192.168.2.112 0.0.0.7
+ deny any
+exit
+```
+
+---
+
+## VTY Configuration
+
+```bash
+line vty 0 4
+ access-class SSH_ADMINS_ONLY in
+ login local
+ transport input ssh
+exit
+
+line vty 5 15
+ access-class SSH_ADMINS_ONLY in
+ login local
+ transport input ssh
+exit
+```
+
+---
+
+## Verification Commands
+
+```bash
+show ip interface brief
+show vlan brief
+show interfaces trunk
+show ip route
+show standby brief
+show spanning-tree root
+show spanning-tree vlan 10
+show spanning-tree vlan 20
+show access-lists
+show users
+show ssh
+```
+
+---
+
+## Expected Core Roles
+
+| VLAN                 | Network          | HSRP virtual gateway | Preferred active core | Preferred STP root |
+| -------------------- | ---------------- | -------------------: | --------------------- | ------------------ |
+| VLAN 10 — ALUMNOS    | 192.168.0.0/23   |          192.168.0.1 | MLS-CORE-1            | MLS-CORE-1         |
+| VLAN 20 — PROFESORES | 192.168.2.0/26   |          192.168.2.1 | MLS-CORE-2            | MLS-CORE-2         |
+| VLAN 30 — ADMINS     | 192.168.2.112/29 |        192.168.2.113 | MLS-CORE-1            | MLS-CORE-1         |
+| VLAN 40 — INVITADOS  | 192.168.2.64/27  |         192.168.2.65 | MLS-CORE-2            | MLS-CORE-2         |
+| VLAN 50 — SERVERS    | 192.168.2.96/29  |         192.168.2.97 | MLS-CORE-1            | MLS-CORE-1         |
+| VLAN 99 — MANAGEMENT | 192.168.2.128/28 |        192.168.2.129 | MLS-CORE-2            | MLS-CORE-2         |
+
+---
+
+## Security Notice
+
+Real passwords and encrypted password hashes must not be published in the GitHub repository.
+
+The following placeholders are used instead:
+
+```text
+<SECURE_PASSWORD>
+<ENABLE_SECRET>
+```
+
+The running configuration currently contains two similarly named student ACLs:
+
+```text
+ACL_ALUMNOS
+ACL-ALUMNOS
+```
+
+`ACL-ALUMNOS` is the complete version because it includes the required DHCP permissions. The older `ACL_ALUMNOS` entry should not be included in the final sanitized configuration.
+
+The extended ACLs are defined in the current running configuration, but no `ip access-group` command appears under the VLAN interfaces. Their application must be verified before documenting the filtering tests as successful.
