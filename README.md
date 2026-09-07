@@ -463,6 +463,31 @@ enterprise-school-network/
 
 ---
 
+# AI Website Cloner (Additional Tooling)
+
+This repository also ships the [ai-website-cloner-template](https://github.com/JCodesMore/ai-website-cloner-template) (MIT), installed at the root so an AI coding agent can recreate any website as a clean Next.js app.
+
+## Quick Start
+
+```bash
+npm install          # Node.js 24+ recommended
+claude --chrome      # or any supported agent
+/clone-website <target-url>
+```
+
+The generated site lives in `src/app/`. Research artifacts and reference screenshots are written to `docs/research/` and `docs/design-references/`.
+
+| Path | Contents |
+| :--- | :--- |
+| `src/`, `public/` | Next.js 16 + shadcn/ui app where the clone is built |
+| `.claude/skills/clone-website/` | The `/clone-website` skill (equivalents for other agents in `.cursor/`, `.codex/`, `.gemini/`, etc.) |
+| `AGENTS.md` | Project instructions for AI coding agents |
+| `docs/ai-website-cloner/` | Upstream template README, changelog and MIT license |
+
+This tooling is independent from the network project: `configs/`, `topology/`, `security/` and `tests/` are untouched.
+
+---
+
 # Educational Purpose
 
 This project was created for educational and portfolio purposes.
